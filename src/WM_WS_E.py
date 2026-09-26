@@ -16,12 +16,51 @@ def send(msg):
 
 # Variable global para controlar la simulación de avería/fuga 
 simular_fuga = False
+regando = False
 
 def capturar_teclado(): 
     global simular_fuga
     input("\n[WM_WS_E] ---> Presiona ENTER en cualquier momento para SIMULAR UNA AVERÍA (KO) <---\n")
     simular_fuga = True 
     print("[WM_WS_E] *** ¡ATENCIÓN! Estado cambiado a KO (Fuga/Avería simulada) ***")
+
+# Función de prueba para menú de opción de riego o fuga
+
+def menu_regando():
+    global simular_fuga, regando
+
+    while True:
+        print("EL SISTEMA ESTÁ EN RIEGO\n")
+        print("1. FUGA\n")
+        print("2. DETENER RIEGO\n")
+        op = int(input("ESCOJA OPCIÓN: "))
+        
+        if op == 1:
+            simular_fuga = True
+            print("[WM_WS_E] *** ¡ATENCIÓN! Estado cambiado a KO (Fuga/Avería simulada) ***")
+            break
+        if op == 2:
+            regando = False
+            print("[WM_WS_E]: Deteniendo riego")
+            break
+
+def menu():
+    global simular_fuga, regando
+    while True:
+        print("SELECCIONE OPCIÓN DE [WM_WS_E] PARA RIEGO O FUGA\n")
+        print("1. FUGA\n")
+        print("2. RIEGO\n")
+        op = int(input("ESCOJA OPCIÓN: "))
+        
+        if op == 1:
+            simular_fuga = True
+            print("[WM_WS_E] *** ¡ATENCIÓN! Estado cambiado a KO (Fuga/Avería simulada) ***")
+        if op == 2:
+            # Estado del WS en RIEGO
+            # Hay que mandar los datos de Caudal, Volumen acumulado e ID del operario
+            print("[WM_WS_E]: Activado sistema de riego ")
+            regando = True
+            menu_regando()
 
 def main():
 
@@ -33,7 +72,7 @@ def main():
 
         global simular_fuga
 
-        hilo_teclado = threading.Thread(target=capturar_teclado, daemon=True) 
+        hilo_teclado = threading.Thread(target=menu, daemon=True) 
         hilo_teclado.start()
 
         client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -54,6 +93,9 @@ def main():
                     print("PING HEALTH recibido. Envío a [WM_WS_M:] KO")
                     client.sendall("KO".encode(FORMAT))
                     break
+                if regando:
+                    print("PING HEALTH recibido. Envio a [WM_WS_M]: REGANDO")
+                    client.sendall("RIEGO".encode(FORMAT))
                 else:
                     print("PING HEALTH recibido. Envio a [WM_WS_M]: OK")
                     client.sendall("OK".encode(FORMAT))
