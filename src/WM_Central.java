@@ -49,6 +49,18 @@ public class WM_Central{
         }
     }
 
+    public static void inicializarEstados(){
+    var url = "jdbc:sqlite:WM.db";
+    var sql = "UPDATE aspersores SET estado = 'DESCONECTADA'";
+    try (var conn = DriverManager.getConnection(url);
+        var pstmt = conn.prepareStatement(sql)) {
+        pstmt.executeUpdate();
+        //System.out.println(filas + " estaciones marcadas como DESCONECTADA al arrancar CENTRAL.");
+    } catch (SQLException e) {
+        System.err.println("Error inicializando estados: " + e.getMessage());
+    }
+}
+
     public static void main(String args[]){
 
         
@@ -66,6 +78,7 @@ public class WM_Central{
 
             createTable();
             insertarDatosPrueba();
+            inicializarEstados();
 
             ServerSocket skServidor = new ServerSocket(Integer.parseInt(puerto_Servidor));
             System.out.println("Escucho el puerto " + puerto_Servidor);
@@ -77,13 +90,8 @@ public class WM_Central{
                 Thread t = new WM_Central_Thread(skCliente);
                 t.start();
             }
-
-        
         }catch(Exception e){
             System.out.println("Error: " + e.toString());
         }
-        
-
-
     }
 }
