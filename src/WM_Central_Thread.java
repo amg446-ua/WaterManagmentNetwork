@@ -43,11 +43,14 @@ public class WM_Central_Thread extends Thread {
     }
 
     public String[] splitear(String Cadena){
+        /*
         String[] partes = Cadena.split("#");
         String op = partes.length > 0 ? partes[0] : "";
         String id_estacion = partes.length > 1 ? partes[1] : "";
         String ubicacion = partes.length > 2 ? partes[2] : "";
         return new String[]{op, id_estacion, ubicacion};
+        */
+        return Cadena.split("#");
     }
 
     public String buscarEstadoID_BBDD(String id){
@@ -118,7 +121,7 @@ public class WM_Central_Thread extends Thread {
                 this.escribirSocket(skCliente, respuesta); 
                 skCliente.close();
             }
-            else if(estado.equals("DISPONIBLE")){
+            else if(!estado.equals("DESCONECTADA")){
                 respuesta = "STATUS#ERROR#El aspersor ya estaba conectado";
                 this.escribirSocket(skCliente, respuesta); 
                 skCliente.close();
@@ -130,8 +133,8 @@ public class WM_Central_Thread extends Thread {
                 System.out.println(registro + " ID_ESTACION: " + id_estacion + ", UBICACIÓN: " + ubicacion);
                 respuesta = "STATUS#OK#Estacion: " + ubicacion + " registrada correctamente";
                 escribirSocket(skCliente, respuesta);
-                estado = "DISPONIBLE";
-                updateConexion_BBDD(estado, id_estacion);
+                //estado = "DISPONIBLE";
+                //updateConexion_BBDD(estado, id_estacion);
                 
                 for(;;){
                     Cadena = "";
@@ -142,20 +145,41 @@ public class WM_Central_Thread extends Thread {
                         updateConexion_BBDD("DESCONECTADA", id_estacion);
                         break;
                     }
+                    else if(Cadena.contains("CONNECT")){
+                        String[] partesAlerta = this.splitear(Cadena);
+                        System.out.println(partesAlerta[2]);
+                        if(partesAlerta[2].equals("DISPONIBLE")){
+                            System.out.println("MODO DISPONIBLE " + id_estacion);
+                            updateConexion_BBDD("DISPONIBLE", id_estacion);
+                            this.escribirSocket(skCliente, "ACK#DISPONIBILIDAD_RECIBIDA");
+                        }
+                        if(partesAlerta[2].equals("REGANDO")){
+                            String caudal = partesAlerta[3];
+                            String volumen = partesAlerta[4];
+                            System.out.println("MODO REGANDO " + id_estacion + " -> Caudal: " + caudal + " L/min, Volumen: " + volumen + " L");
+                            updateConexion_BBDD("REGANDO", id_estacion);
+                            this.escribirSocket(skCliente, "ACK#MODO_REGANDO");
+                        }
+                        System.out.println("Estado: " + partesAlerta[0] + "/ ID: " + id_estacion + "/ OPCIÓN: " + partesAlerta[2]);
+                        if(partesAlerta[2].equals("FIN_RIEGO")){
+                            //String[] partesAlerta = this.splitear(Cadena);
+                            String volumenTotal = partesAlerta.length > 3 ? partesAlerta[3] : "0";
+                            System.out.println("Riego finalizado en " + id_estacion + ". Volumen total: " + volumenTotal + " L");
+                            updateConexion_BBDD("DISPONIBLE", id_estacion);
+                            this.escribirSocket(skCliente, "ACK#FIN_RIEGO_RECIBIDO");
+                        }
+                    }
                     else if(Cadena.contains("ALERT")){
                         String[] partesAlerta = this.splitear(Cadena);
-
                         // Trama esperada = ALERT#id#FUGA
-
-                        if(partesAlerta[2].equals("FUGA")){
+                            if(partesAlerta[2].equals("FUGA")){
                             System.out.println("ALERTA DE FUGA Estación: " + id_estacion);
                             updateConexion_BBDD("FUGA", id_estacion);
                             this.escribirSocket(skCliente, "ACK#FUGA_RECIBIDA");
                         }
                         else if(partesAlerta[2].equals("DESCONECTADA")){
-                            System.out.println("ALERTA DE FUGA Estación: " + id_estacion);
+                            System.out.println("ALERTA DE DESCONEXIÓN Estación: " + id_estacion);
                             updateConexion_BBDD("DESCONECTADA", id_estacion);
-                            break;
                         }
                     }
 
