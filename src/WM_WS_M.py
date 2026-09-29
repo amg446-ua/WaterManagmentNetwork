@@ -72,42 +72,51 @@ def atender_engine(conn, MENSAJE):
     try:    
         while True:
             conn.sendall("PING_HEALTH".encode(FORMAT))
-
             respuesta = conn.recv(HEADER).decode(FORMAT)
-                
+
             if not respuesta:
                 print("[WM_WS_M] ERROR: El Engine se ha desconectado inesperadamente")
                 if sock_central:
                     tramo = splitear(MENSAJE)
                     enviar_utf(sock_central, f"ALERT#{tramo[1]}#DESCONECTADA")
                 break
+
             elif respuesta == "KO":
                 print("[WM_WS_M] ALERTA: El Engine ha sufrido un error (fuga/avería)")
                 if sock_central:
                     tramo = splitear(MENSAJE)
-                    mensaje = "ALERT#"+tramo[1]+"#FUGA"
-                    enviar_utf(sock_central, mensaje)
+                    enviar_utf(sock_central, f"ALERT#{tramo[1]}#FUGA")
                     print("[WM_WS_M] Notificada alerta de FUGA a Central.")
                 else:
                     print("[WM_WS_M] No hay conexión con Central; alerta no enviada.")
                 break
-            elif respuesta == "RIEGO":
-                print("[WM_WS_M] STATUS: [WM_WS_E] ha activado el riego")
-                if sock_central:
-                    tramo = splitear(MENSAJE)
-                    mensaje = "CONNECT#"+tramo[1]+"#REGANDO"
-                    enviar_utf(sock_central, mensaje)
-                    print("[WM_WS_M]: Está en modo riego")
-            elif respuesta == "DEJAR_REGAR":
-                if sock_central:
-                    tramo = splitear(MENSAJE)
-                    mensaje = "CONNECT#"+tramo[1]+"#DISPONIBLE"
-                    enviar_utf(sock_central, mensaje)
-                    print("[WM_WS_M]: vuelve a estar disponible")
-            else:
-                print(f"[WM_WS_M] Health Check: {respuesta}")
 
-            time.sleep(1)
+            else:
+                # Mensaje esperado: OK | OK#REGANDO#caudal#volumen | OK#FIN#volumen_total
+                
+                """
+                if len(trama) == 1 and trama[0] == "OK":
+                    print(f"[WM_WS_M] Health Check: OK")
+                """
+                if respuesta == "OK":
+                    print(f"[WM_WS_M] Health Check: OK")
+                trama = respuesta.split("#")
+
+                if len(trama) > 1 and trama[1] == "REGANDO":
+                    caudal, volumen = trama[2], trama[3]
+                    print(f"[WM_WS_M] Regando -> Caudal: {caudal} L/min, Volumen: {volumen} L")
+                    if sock_central:
+                        tramo = splitear(MENSAJE)
+                        enviar_utf(sock_central, f"CONNECT#{tramo[1]}#REGANDO#{caudal}#{volumen}")
+
+                elif len(trama) > 1 and trama[1] == "FIN":
+                    volumen_total = trama[2]
+                    print(f"[WM_WS_M] Riego finalizado. Volumen total: {volumen_total} L")
+                    if sock_central:
+                        tramo = splitear(MENSAJE)
+                        enviar_utf(sock_central, f"CONNECT#{tramo[1]}#FIN_RIEGO#{volumen_total}")
+
+                time.sleep(1)
     except (OSError, ConnectionError) as e:
         print(f"Respuesta: {respuesta}")
         print(f"Error en la conexión con el Engine: {e}")
