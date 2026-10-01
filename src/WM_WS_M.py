@@ -3,12 +3,18 @@ import sys
 import struct
 import threading
 import time
+from kafka import KafkaProducer
+from kafka import KafkaConsumer
 
 FORMAT = "utf-8"
 HEADER = 1024
 
 # Servidor de WM_Central para compartir entre hilos
 sock_central = None
+producer_kafka = None
+consumer_ordenes = None
+conn_engine = None
+orden_pendiente = None
 
 def enviar_utf(sock, texto):
     datos = texto.encode(FORMAT)
@@ -61,7 +67,7 @@ def hilo_cliente_central(MENSAJE, ADDR):
         finally:
             cliente.close()
             sock_central = None
-    time.sleep(3)
+            time.sleep(3)
 
 def splitear(mensaje):
     tramos = mensaje.split("#")
@@ -69,10 +75,18 @@ def splitear(mensaje):
 
 
 def atender_engine(conn, MENSAJE):
+    global producer_kafka, orden_pendiente
     try:    
         while True:
-            conn.sendall("PING_HEALTH".encode(FORMAT))
-            respuesta = conn.recv(HEADER).decode(FORMAT)
+            if orden_pendiente:
+                orden_a_enviar = orden_pendiente
+                orden_pendiente = None
+                conn.sendall(f"ORDEN#{orden_a_enviar}".encode(FORMAT))
+                respuesta = conn.recv(HEADER).decode(FORMAT)
+                print(f"[WM_WS_M] Engine respondió a la orden: {respuesta}")
+            else:
+                conn.sendall("PING_HEALTH".encode(FORMAT))
+                respuesta = conn.recv(HEADER).decode(FORMAT)
 
             if not respuesta:
                 print("[WM_WS_M] ERROR: El Engine se ha desconectado inesperadamente")
@@ -93,11 +107,6 @@ def atender_engine(conn, MENSAJE):
 
             else:
                 # Mensaje esperado: OK | OK#REGANDO#caudal#volumen | OK#FIN#volumen_total
-                
-                """
-                if len(trama) == 1 and trama[0] == "OK":
-                    print(f"[WM_WS_M] Health Check: OK")
-                """
                 if respuesta == "OK":
                     print(f"[WM_WS_M] Health Check: OK")
                 trama = respuesta.split("#")
@@ -105,18 +114,20 @@ def atender_engine(conn, MENSAJE):
                 if len(trama) > 1 and trama[1] == "REGANDO":
                     caudal, volumen = trama[2], trama[3]
                     print(f"[WM_WS_M] Regando -> Caudal: {caudal} L/min, Volumen: {volumen} L")
-                    if sock_central:
-                        tramo = splitear(MENSAJE)
-                        enviar_utf(sock_central, f"CONNECT#{tramo[1]}#REGANDO#{caudal}#{volumen}")
+                    tramo = splitear(MENSAJE)
+                    mensaje_kafka = f"{tramo[1]}#{caudal}#{volumen}"
+                    producer_kafka.send('datos-riego', mensaje_kafka.encode(FORMAT))
+                    producer_kafka.flush()
 
                 elif len(trama) > 1 and trama[1] == "FIN":
                     volumen_total = trama[2]
                     print(f"[WM_WS_M] Riego finalizado. Volumen total: {volumen_total} L")
-                    if sock_central:
-                        tramo = splitear(MENSAJE)
-                        enviar_utf(sock_central, f"CONNECT#{tramo[1]}#FIN_RIEGO#{volumen_total}")
+                    tramo = splitear(MENSAJE)
+                    mensaje_kafka = f"{tramo[1]}#{volumen_total}"
+                    producer_kafka.send('fin-riego', mensaje_kafka.encode(FORMAT))
+                    producer_kafka.flush()
 
-                time.sleep(1)
+            time.sleep(1)
     except (OSError, ConnectionError) as e:
         print(f"Respuesta: {respuesta}")
         print(f"Error en la conexión con el Engine: {e}")
@@ -130,7 +141,7 @@ def atender_engine(conn, MENSAJE):
 # Hace de servidor con WM_WS_E
 def server(IP_WS, PORT_WS, MENSAJE):
     
-    global sock_central
+    global sock_central, conn_engine
 
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -142,17 +153,82 @@ def server(IP_WS, PORT_WS, MENSAJE):
         while True:
             print(f"[WM_WS_M] Esperando conexión del Engine en el puerto {PORT_WS}...") 
             conn, addr = s.accept()
-            enviar_utf(sock_central, f"CONNECT#{partes[1]}#DISPONIBLE")
+            conn_engine = conn
+
+            if sock_central:
+                enviar_utf(sock_central, f"CONNECT#{partes[1]}#DISPONIBLE")
+            else:
+                print("[WM_WS_M] No hay conexión con Central; alta de Engine no notificada.")
+            
             print(f"[WM_WS_M] Engine conectado desde {addr}")
             
             # Hacemos que se quede en otro bucle while para que siga atendiendo peticiones de WM_WS_E 
             # después de haber cerrado una conexión con este
             atender_engine(conn, MENSAJE)
+            conn_engine = None
     finally:
         s.close()
 
+def escuchar_ordenes(MENSAJE):
+    global conn_engine, orden_pendiente
+    tramo = splitear(MENSAJE)
+    mi_id = tramo[1]
+
+    print(f"[WM_WS_M] Escuchando órdenes de Central para {mi_id}...")
+
+    for mensaje in consumer_ordenes:
+        valor = mensaje.value.decode(FORMAT)
+        partes = valor.split("#")
+
+        if len(partes) < 2:
+            consumer_ordenes.commit()
+            continue
+        
+        id_estacion = partes[0]
+        orden = partes[1]
+
+        # id_estacion aqui no es un id porque en este mensaje que va a todos se pone un TODOS
+        if mi_id != id_estacion and id_estacion != "TODAS":
+            consumer_ordenes.commit()
+            continue
+        
+        print(f"[WM_WS_M] Orden recibida de Central: {orden}")
+
+        if orden == "INICIAR_RIEGO":
+            if conn_engine:
+                orden_pendiente = "INICIAR_RIEGO"
+                print("[WM_WS_M] INICIAR_RIEGO encolada para el próximo ciclo de PING_HEALTH.")
+            else:
+                print("[WM_WS_M] No hay Engine conectado; orden descartada.")
+        
+        elif orden == "BLOQUEAR":
+            print("[WM_WS_M] Orden de bloqueo recibida.")
+            if sock_central:
+                tramo = splitear(MENSAJE)
+                enviar_utf(sock_central, f"CONNECT#{tramo[1]}#FUERA_DE_SERVICIO")
+                print("[WM_WS_M] Estado FUERA_DE_SERVICIO notificado a Central.")
+            else:
+                print("[WM_WS_M] No hay conexión con Central; bloqueo no notificado.")
+
+            if conn_engine:
+                orden_pendiente = "BLOQUEAR"
+                print("[WM_WS_M] BLOQUEAR encolada para el próximo ciclo de PING_HEALTH (cortar riego si lo hay)")
+            else:
+                print("[WM_WS_M] No hay ningún Engine conectado y no hay riego que cortar")
+
+        elif orden == "ACTIVAR":
+            print("[WM_WS_M] Orden de activación recibida.")
+            if sock_central:
+                tramo = splitear(MENSAJE)
+                enviar_utf(sock_central, f"CONNECT#{tramo[1]}#DISPONIBLE")
+                print("[WM_WS_M] Estado DISPONIBLE notificado a Central.")
+            else:
+                print("[WM_WS_M] No hay conexión con Central; activación no notificada.")
+        
+        consumer_ordenes.commit()
 
 def main():
+    global producer_kafka, consumer_ordenes
     print("#################################################################")
     if(len(sys.argv) == 6):
         IP_SERVIDOR_CENTRAL = sys.argv[1]
@@ -161,6 +237,21 @@ def main():
         ADDR = (IP_SERVIDOR_CENTRAL, PORT_CENTRAL)
         IP_WS = sys.argv[4]
         PORT_WS = int(sys.argv[5])
+
+        producer_kafka = KafkaProducer(
+            bootstrap_servers="localhost:9092",
+            api_version=(2, 8, 0)
+        )
+
+        consumer_ordenes = KafkaConsumer(
+            'ordenes-central',
+            bootstrap_servers="localhost:9092",
+            api_version=(2, 8, 0),
+            auto_offset_reset='latest',
+            enable_auto_commit=False,
+            group_id=f'monitor-{MENSAJE.split("#")[1]}'
+        )
+        print("[WM_WS_M] Conectado al broker de Kafka.")
 
         try:
             # Hilo donde hace de cliente con el servidor WM_Central
@@ -172,10 +263,13 @@ def main():
             t_server = threading.Thread(target=server, args=(IP_WS, PORT_WS, MENSAJE))
             
             t_server.start()
-            #time.sleep(1) 
+            
+            t_ordenes = threading.Thread(target=escuchar_ordenes, args=(MENSAJE,))
+            t_ordenes.start()
 
             t_client.join()
             t_server.join()
+            t_ordenes.join()
         except KeyboardInterrupt:
             print("[WM_WS_M] Cierre solicitado (Ctrl+C)")
     else:

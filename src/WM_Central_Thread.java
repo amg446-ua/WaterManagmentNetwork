@@ -43,18 +43,11 @@ public class WM_Central_Thread extends Thread {
     }
 
     public String[] splitear(String Cadena){
-        /*
-        String[] partes = Cadena.split("#");
-        String op = partes.length > 0 ? partes[0] : "";
-        String id_estacion = partes.length > 1 ? partes[1] : "";
-        String ubicacion = partes.length > 2 ? partes[2] : "";
-        return new String[]{op, id_estacion, ubicacion};
-        */
         return Cadena.split("#");
     }
 
-    public String buscarEstadoID_BBDD(String id){
-        String url = "jdbc:sqlite:WM.db";
+    public static String buscarEstadoID_BBDD(String id){
+        var url = "jdbc:sqlite:/home/usuario/Documentos/Curso-26-27/SD/Practica/Water-Management/WM.db";
         String sql = "SELECT estado FROM aspersores WHERE id = ?";
 
         try (var conn = DriverManager.getConnection(url);
@@ -76,8 +69,8 @@ public class WM_Central_Thread extends Thread {
         }
     }
 
-    public void updateConexion_BBDD(String estado, String id){
-        var url = "jdbc:sqlite:WM.db";
+    public static void updateConexion_BBDD(String estado, String id){
+        var url = "jdbc:sqlite:/home/usuario/Documentos/Curso-26-27/SD/Practica/Water-Management/WM.db";
         var sql = "UPDATE aspersores SET estado = ? WHERE id = ?";
 
         try(var conn = DriverManager.getConnection(url); var pstmt = conn.prepareStatement(sql)){
@@ -93,6 +86,74 @@ public class WM_Central_Thread extends Thread {
             System.err.println(e.getMessage());
         }
     }
+
+    public static void setOperarioActual(String id, String operador){
+        var url = "jdbc:sqlite:/home/usuario/Documentos/Curso-26-27/SD/Practica/Water-Management/WM.db";
+        var sql = "UPDATE aspersores SET operario_actual = ? WHERE id = ?";
+
+        try(var conn = DriverManager.getConnection(url); var pstmt = conn.prepareStatement(sql)){
+            pstmt.setString(1, operador);
+            pstmt.setString(2, id);
+            pstmt.executeUpdate();
+        }catch (SQLException e) {
+            System.err.println("Error actualizando operario_actual: " + e.getMessage());
+        }
+    }
+
+    public static String getOperarioActual(String id_estacion) {
+        String url = "jdbc:sqlite:/home/usuario/Documentos/Curso-26-27/SD/Practica/Water-Management/WM.db";
+        String sql = "SELECT operario_actual FROM aspersores WHERE id = ?";
+        try (var conn = DriverManager.getConnection(url);
+            var pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, id_estacion);
+            try (var rs = pstmt.executeQuery()) {
+                if (rs.next()) {
+                    return rs.getString("operario_actual");
+                }
+                return null;
+            }
+        } catch (SQLException e) {
+            System.err.println("Error leyendo operario_actual: " + e.getMessage());
+            return null;
+        }
+    }
+
+    public static boolean validarOperator(String id_operario){
+
+        String url = "jdbc:sqlite:/home/usuario/Documentos/Curso-26-27/SD/Practica/Water-Management/WM.db";
+        String sql = "SELECT id from operarios where id = ?";
+
+        try(var conn = DriverManager.getConnection(url); var pstmt = conn.prepareStatement(sql)){
+
+            pstmt.setString(1, id_operario);
+
+            try (var rs = pstmt.executeQuery()) {
+                return rs.next();   // Si no hay fila devuelve false, si no trues
+            }
+
+        } catch (SQLException e) {
+            System.err.println("Error leyendo operario_actual: " + e.getMessage());
+            return false;
+        }
+    }
+
+    /*
+        public static void registrar_operario(String id_operario, String nombre){
+            String url = "jdbc:sqlite:/home/usuario/Documentos/Curso-26-27/SD/Practica/Water-Management/WM.db";
+            String sql = "INSERT INTO operarios (id, nombre) VALUES (?, ?)";
+
+            try(var conn = DriverManager.getConnection(url); var pstmt = conn.prepareStatement(sql)){
+
+                pstmt.setString(1, id_operario);
+                pstmt.setString(2, nombre);
+                pstmt.executeQuery();
+
+            }catch (SQLException e) {
+                System.err.println("Error leyendo operario_actual: " + e.getMessage());
+            }
+        }
+    */
+    
 
     public void run(){
         String Cadena = "";
@@ -153,20 +214,10 @@ public class WM_Central_Thread extends Thread {
                             updateConexion_BBDD("DISPONIBLE", id_estacion);
                             this.escribirSocket(skCliente, "ACK#DISPONIBILIDAD_RECIBIDA");
                         }
-                        if(partesAlerta[2].equals("REGANDO")){
-                            String caudal = partesAlerta[3];
-                            String volumen = partesAlerta[4];
-                            System.out.println("MODO REGANDO " + id_estacion + " -> Caudal: " + caudal + " L/min, Volumen: " + volumen + " L");
-                            updateConexion_BBDD("REGANDO", id_estacion);
-                            this.escribirSocket(skCliente, "ACK#MODO_REGANDO");
-                        }
-                        System.out.println("Estado: " + partesAlerta[0] + "/ ID: " + id_estacion + "/ OPCIÓN: " + partesAlerta[2]);
-                        if(partesAlerta[2].equals("FIN_RIEGO")){
-                            //String[] partesAlerta = this.splitear(Cadena);
-                            String volumenTotal = partesAlerta.length > 3 ? partesAlerta[3] : "0";
-                            System.out.println("Riego finalizado en " + id_estacion + ". Volumen total: " + volumenTotal + " L");
-                            updateConexion_BBDD("DISPONIBLE", id_estacion);
-                            this.escribirSocket(skCliente, "ACK#FIN_RIEGO_RECIBIDO");
+                        else if(partesAlerta[2].equals("FUERA_DE_SERVICIO")){
+                            System.out.println("MODO FUERA DE SERVICIO " + id_estacion);
+                            updateConexion_BBDD("FUERA_DE_SERVICIO", id_estacion);
+                            this.escribirSocket(skCliente, "ACK#BLOQUEO_RECIBIDO");
                         }
                     }
                     else if(Cadena.contains("ALERT")){

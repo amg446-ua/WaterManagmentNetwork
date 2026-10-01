@@ -10,27 +10,66 @@ public class WM_Central{
         String sql = "CREATE TABLE IF NOT EXISTS aspersores (" +
                     "id TEXT PRIMARY KEY, " +
                     "estado TEXT, " +
-                    "ocupado INTEGER)";
+                    "operario_actual TEXT)";
 
         try (var conn = DriverManager.getConnection(url);
             var stmt = conn.createStatement()) {
             stmt.execute(sql);
-            System.out.println("Tabla 'aspersores' lista.");
+            System.out.println("Tabla 'aspersores' lista");
         } catch (SQLException e) {
             System.err.println("ERROR creando tabla: " + e.getMessage());
         }
     }
 
-    public static void insertarDatosPrueba(){
-        String url = "jdbc:sqlite:WM.db";
-        String sql = "INSERT OR IGNORE INTO aspersores (id, estado, ocupado) VALUES (?, ?, ?)";
+    public static void createOperatorTable(){
+        String url = "jdbc:sqlite:/home/usuario/Documentos/Curso-26-27/SD/Practica/Water-Management/WM.db";
+        String sql = "CREATE TABLE IF NOT EXISTS operarios(" + 
+                    "id TEXT PRIMAY KEY, " + 
+                    "nombre TEXT)";
+
+        try(var conn = DriverManager.getConnection(url); var stmt = conn.createStatement()){
+            stmt.execute(sql);
+            System.out.println("Tabla 'operarios' lista");
+        }catch(SQLException e){
+            System.err.println("ERROR creanto tabla: " + e.getMessage());
+        }
+    }
+
+    public static void insertartOperarios(){
+        String url = "jdbc:sqlite:/home/usuario/Documentos/Curso-26-27/SD/Practica/Water-Management/WM.db";
+        String sql = "INSERT OR IGNORE INTO operarios (id, nombre) VALUES (?, ?)";
 
         String[][] datos = {
-            {"WS-01", "DESCONECTADA", "0"},
-            {"WS-02", "DESCONECTADA", "0"},
-            {"WS-03", "DESCONECTADA", "0"},
-            {"WS-04", "DESCONECTADA", "0"},
-            {"WS-05", "DESCONECTADA", "0"}
+            {"FO-01", "Adrián Muñoz"},
+            {"FO-02", "Javier Rentero"},
+            {"FO-03", "Fran Sol"}
+        };
+
+        try(var conn = DriverManager.getConnection(url); var pstmt = conn.prepareStatement(sql)){
+
+            for(String[] dato : datos){
+                pstmt.setString(1, dato[0]);
+                pstmt.setString(2, dato[1]);
+                pstmt.executeUpdate();
+            }
+
+            System.out.println("Datos de prueba de operarios insertados");
+
+        }catch(SQLException e){
+            System.err.println("ERROR insertando datos " + e.getMessage());
+        }
+    }
+
+    public static void insertarDatosPrueba(){
+        String url = "jdbc:sqlite:WM.db";
+        String sql = "INSERT OR IGNORE INTO aspersores (id, estado, operario_actual) VALUES (?, ?, ?)";
+
+        String[][] datos = {
+            {"WS-01", "DESCONECTADA", "NULL"},
+            {"WS-02", "DESCONECTADA", "NULL"},
+            {"WS-03", "DESCONECTADA", "NULL"},
+            {"WS-04", "DESCONECTADA", "NULL"},
+            {"WS-05", "DESCONECTADA", "NULL"}
         };
 
         try (var conn = DriverManager.getConnection(url);
@@ -39,7 +78,11 @@ public class WM_Central{
             for (String[] fila : datos) {
                 pstmt.setString(1, fila[0]);
                 pstmt.setString(2, fila[1]);
-                pstmt.setInt(3, Integer.parseInt(fila[2]));
+                if (fila[2].equals("NULL")) {
+                    pstmt.setNull(3, java.sql.Types.VARCHAR);
+                } else {
+                    pstmt.setString(3, fila[2]);
+                }
                 pstmt.executeUpdate();
             }
             System.out.println("Datos de prueba insertados.");
@@ -80,8 +123,15 @@ public class WM_Central{
             insertarDatosPrueba();
             inicializarEstados();
 
+            createOperatorTable();
+            insertartOperarios();
+
             ServerSocket skServidor = new ServerSocket(Integer.parseInt(puerto_Servidor));
             System.out.println("Escucho el puerto " + puerto_Servidor);
+
+            new KafkaConsumer_Thread().start();
+            new KafkaPeticiones_Thread().start();
+            new MenuOperador_Thread().start();
 
             for(;;){
                 Socket skCliente = skServidor.accept();
