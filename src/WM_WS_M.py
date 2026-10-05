@@ -15,6 +15,8 @@ producer_kafka = None
 consumer_ordenes = None
 conn_engine = None
 orden_pendiente = None
+bloq = False
+bloqueada = False
 
 def enviar_utf(sock, texto):
     datos = texto.encode(FORMAT)
@@ -75,7 +77,7 @@ def splitear(mensaje):
 
 
 def atender_engine(conn, MENSAJE):
-    global producer_kafka, orden_pendiente
+    global producer_kafka, orden_pendiente, bloq
     try:    
         while True:
             if orden_pendiente:
@@ -84,6 +86,8 @@ def atender_engine(conn, MENSAJE):
                 conn.sendall(f"ORDEN#{orden_a_enviar}".encode(FORMAT))
                 respuesta = conn.recv(HEADER).decode(FORMAT)
                 print(f"[WM_WS_M] Engine respondió a la orden: {respuesta}")
+                if orden_a_enviar == "BLOQUEAR" and respuesta.startswith("OK#FIN"):
+                    bloq = True
             else:
                 conn.sendall("PING_HEALTH".encode(FORMAT))
                 respuesta = conn.recv(HEADER).decode(FORMAT)
@@ -123,9 +127,15 @@ def atender_engine(conn, MENSAJE):
                     volumen_total = trama[2]
                     print(f"[WM_WS_M] Riego finalizado. Volumen total: {volumen_total} L")
                     tramo = splitear(MENSAJE)
-                    mensaje_kafka = f"{tramo[1]}#{volumen_total}"
-                    producer_kafka.send('fin-riego', mensaje_kafka.encode(FORMAT))
-                    producer_kafka.flush()
+                    if bloq:
+                        mensaje_kafka = f"{tramo[1]}#{volumen_total}#BLOQUEO"
+                        producer_kafka.send('fin-riego', mensaje_kafka.encode(FORMAT))
+                        producer_kafka.flush()
+                        bloq = False
+                    else:
+                        mensaje_kafka = f"{tramo[1]}#{volumen_total}#NORMAL"
+                        producer_kafka.send('fin-riego', mensaje_kafka.encode(FORMAT))
+                        producer_kafka.flush()
 
             time.sleep(1)
     except (OSError, ConnectionError) as e:
@@ -170,7 +180,7 @@ def server(IP_WS, PORT_WS, MENSAJE):
         s.close()
 
 def escuchar_ordenes(MENSAJE):
-    global conn_engine, orden_pendiente
+    global conn_engine, orden_pendiente, bloqueada
     tramo = splitear(MENSAJE)
     mi_id = tramo[1]
 
@@ -195,7 +205,9 @@ def escuchar_ordenes(MENSAJE):
         print(f"[WM_WS_M] Orden recibida de Central: {orden}")
 
         if orden == "INICIAR_RIEGO":
-            if conn_engine:
+            if bloqueada:
+                print("[WM_WS_M] Estación bloqueada; orden de riego descartada.")
+            elif conn_engine:
                 orden_pendiente = "INICIAR_RIEGO"
                 print("[WM_WS_M] INICIAR_RIEGO encolada para el próximo ciclo de PING_HEALTH.")
             else:
@@ -203,6 +215,7 @@ def escuchar_ordenes(MENSAJE):
         
         elif orden == "BLOQUEAR":
             print("[WM_WS_M] Orden de bloqueo recibida.")
+            bloqueada = True
             if sock_central:
                 tramo = splitear(MENSAJE)
                 enviar_utf(sock_central, f"CONNECT#{tramo[1]}#FUERA_DE_SERVICIO")
@@ -218,6 +231,7 @@ def escuchar_ordenes(MENSAJE):
 
         elif orden == "ACTIVAR":
             print("[WM_WS_M] Orden de activación recibida.")
+            bloqueada = False
             if sock_central:
                 tramo = splitear(MENSAJE)
                 enviar_utf(sock_central, f"CONNECT#{tramo[1]}#DISPONIBLE")
@@ -230,48 +244,88 @@ def escuchar_ordenes(MENSAJE):
 def main():
     global producer_kafka, consumer_ordenes
     print("#################################################################")
-    if(len(sys.argv) == 6):
+    if(len(sys.argv) == 7):
         IP_SERVIDOR_CENTRAL = sys.argv[1]
-        PORT_CENTRAL = int(sys.argv[2])
+        #PORT_CENTRAL = int(sys.argv[2])
         MENSAJE = sys.argv[3]
-        ADDR = (IP_SERVIDOR_CENTRAL, PORT_CENTRAL)
+        #ADDR = (IP_SERVIDOR_CENTRAL, PORT_CENTRAL)
         IP_WS = sys.argv[4]
-        PORT_WS = int(sys.argv[5])
-
-        producer_kafka = KafkaProducer(
-            bootstrap_servers="localhost:9092",
-            api_version=(2, 8, 0)
-        )
-
-        consumer_ordenes = KafkaConsumer(
-            'ordenes-central',
-            bootstrap_servers="localhost:9092",
-            api_version=(2, 8, 0),
-            auto_offset_reset='latest',
-            enable_auto_commit=False,
-            group_id=f'monitor-{MENSAJE.split("#")[1]}'
-        )
-        print("[WM_WS_M] Conectado al broker de Kafka.")
+        #PORT_WS = int(sys.argv[5])
+        BROKER = sys.argv[6]
 
         try:
-            # Hilo donde hace de cliente con el servidor WM_Central
-            t_client = threading.Thread(target=hilo_cliente_central, args=(MENSAJE, ADDR))
-            t_client.start()
+            PORT_CENTRAL = int(sys.argv[2])
+            PORT_WS = int(sys.argv[5])
+            
+        except ValueError:
+            print("ERROR: Los puertos tienen que ser números enteros")
+            return
 
-            time.sleep(1)
-            
-            t_server = threading.Thread(target=server, args=(IP_WS, PORT_WS, MENSAJE))
-            
-            t_server.start()
-            
-            t_ordenes = threading.Thread(target=escuchar_ordenes, args=(MENSAJE,))
-            t_ordenes.start()
+        if ":" not in BROKER:
+            print(f"ERROR: El broker tiene que tener formato IP:PUERTO, recibido: '{BROKER}'")
+            return
 
+        ADDR = (IP_SERVIDOR_CENTRAL, PORT_CENTRAL)
+
+        try:
+            producer_kafka = KafkaProducer(
+                bootstrap_servers=BROKER,
+                api_version=(2, 8, 0)
+            )
+
+            consumer_ordenes = KafkaConsumer(
+                'ordenes-central',
+                bootstrap_servers=BROKER,
+                api_version=(2, 8, 0),
+                auto_offset_reset='latest',
+                enable_auto_commit=False,
+                group_id=f'monitor-{MENSAJE.split("#")[1]}'
+            )
+            print("[WM_WS_M] Conectado al broker de Kafka.")
+    
+        except NoBrokersAvailable:
+            print("[WM_WS_M] Error: El servidor de Kafka no está disponible o la dirección es incorrecta")
+            
+        except KafkaError as e:
+            print(f"[WM_WS_M] Ocurrió un error general de Kafka: {e}")
+        
+        # Hilo donde hace de cliente con el servidor WM_Central
+        t_client = threading.Thread(target=hilo_cliente_central, args=(MENSAJE, ADDR))
+        t_client.start()
+        time.sleep(1)
+            
+        t_server = threading.Thread(target=server, args=(IP_WS, PORT_WS, MENSAJE))
+        t_server.start()
+            
+        t_ordenes = threading.Thread(target=escuchar_ordenes, args=(MENSAJE,))
+        t_ordenes.start()
+
+        try:
             t_client.join()
             t_server.join()
             t_ordenes.join()
+        
         except KeyboardInterrupt:
-            print("[WM_WS_M] Cierre solicitado (Ctrl+C)")
+            print("Cierre con Ctrl + C")
+
+            if sock_central:
+                try:
+                    tramo = splitear(MENSAJE)
+                    enviar_utf(sock_central, f"ALERT#{tramo[1]}#DESCONECTADA")
+                except Exception:
+                    pass
+                sock_central.close()
+
+            if conn_engine:
+                conn_engine.close()
+
+            if producer_kafka:
+                producer_kafka.close()
+
+            if consumer_ordenes:
+                consumer_ordenes.close()
+
+        
     else:
         print("ERROR: Se necesitan mas argumentos: <ServerIP> <Port> <Argumentos> <IP_WS> <PORT_WS>")
 

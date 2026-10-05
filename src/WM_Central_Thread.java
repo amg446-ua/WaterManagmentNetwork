@@ -47,7 +47,7 @@ public class WM_Central_Thread extends Thread {
     }
 
     public static String buscarEstadoID_BBDD(String id){
-        var url = "jdbc:sqlite:/home/usuario/Documentos/Curso-26-27/SD/Practica/Water-Management/WM.db";
+        var url = "jdbc:sqlite:/app/data/WM.db";
         String sql = "SELECT estado FROM aspersores WHERE id = ?";
 
         try (var conn = DriverManager.getConnection(url);
@@ -70,7 +70,7 @@ public class WM_Central_Thread extends Thread {
     }
 
     public static void updateConexion_BBDD(String estado, String id){
-        var url = "jdbc:sqlite:/home/usuario/Documentos/Curso-26-27/SD/Practica/Water-Management/WM.db";
+        var url = "jdbc:sqlite:/app/data/WM.db";
         var sql = "UPDATE aspersores SET estado = ? WHERE id = ?";
 
         try(var conn = DriverManager.getConnection(url); var pstmt = conn.prepareStatement(sql)){
@@ -88,7 +88,7 @@ public class WM_Central_Thread extends Thread {
     }
 
     public static void setOperarioActual(String id, String operador){
-        var url = "jdbc:sqlite:/home/usuario/Documentos/Curso-26-27/SD/Practica/Water-Management/WM.db";
+        var url = "jdbc:sqlite:/app/data/WM.db";
         var sql = "UPDATE aspersores SET operario_actual = ? WHERE id = ?";
 
         try(var conn = DriverManager.getConnection(url); var pstmt = conn.prepareStatement(sql)){
@@ -101,7 +101,7 @@ public class WM_Central_Thread extends Thread {
     }
 
     public static String getOperarioActual(String id_estacion) {
-        String url = "jdbc:sqlite:/home/usuario/Documentos/Curso-26-27/SD/Practica/Water-Management/WM.db";
+        String url = "jdbc:sqlite:/app/data/WM.db";
         String sql = "SELECT operario_actual FROM aspersores WHERE id = ?";
         try (var conn = DriverManager.getConnection(url);
             var pstmt = conn.prepareStatement(sql)) {
@@ -120,7 +120,7 @@ public class WM_Central_Thread extends Thread {
 
     public static boolean validarOperator(String id_operario){
 
-        String url = "jdbc:sqlite:/home/usuario/Documentos/Curso-26-27/SD/Practica/Water-Management/WM.db";
+        String url = "jdbc:sqlite:/app/data/WM.db";
         String sql = "SELECT id from operarios where id = ?";
 
         try(var conn = DriverManager.getConnection(url); var pstmt = conn.prepareStatement(sql)){
@@ -137,9 +137,24 @@ public class WM_Central_Thread extends Thread {
         }
     }
 
+    public static void actualizarCaudalVolumen(String id_estacion, double caudal, double volumen){
+        String url = "jdbc:sqlite:/app/data/WM.db";
+        String sql = "UPDATE aspersores SET caudal_actual = ?, volumen_actual = ? WHERE id = ?";
+        try (var conn = DriverManager.getConnection(url);
+            var pstmt = conn.prepareStatement(sql)) {
+            pstmt.setDouble(1, caudal);
+            pstmt.setDouble(2, volumen);
+            pstmt.setString(3, id_estacion);
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            System.err.println("Error actualizando caudal/volumen: " + e.getMessage());
+        }
+    }
+
+
     /*
         public static void registrar_operario(String id_operario, String nombre){
-            String url = "jdbc:sqlite:/home/usuario/Documentos/Curso-26-27/SD/Practica/Water-Management/WM.db";
+            String url = "jdbc:sqlite:/app/data/WM.db";
             String sql = "INSERT INTO operarios (id, nombre) VALUES (?, ?)";
 
             try(var conn = DriverManager.getConnection(url); var pstmt = conn.prepareStatement(sql)){
@@ -154,6 +169,18 @@ public class WM_Central_Thread extends Thread {
         }
     */
     
+    public static void actualizarUbicacion(String id_estacion, String ubicacion){
+        String url = "jdbc:sqlite:/app/data/WM.db";
+        String sql = "UPDATE aspersores SET ubicacion = ? WHERE id = ?";
+        try (var conn = DriverManager.getConnection(url);
+            var pstmt = conn.prepareStatement(sql)) {
+            pstmt.setString(1, ubicacion);
+            pstmt.setString(2, id_estacion);
+            pstmt.executeUpdate();
+        } catch (SQLException e) {
+            System.err.println("Error actualizando ubicación: " + e.getMessage());
+        }
+    }
 
     public void run(){
         String Cadena = "";
@@ -194,6 +221,7 @@ public class WM_Central_Thread extends Thread {
                 System.out.println(registro + " ID_ESTACION: " + id_estacion + ", UBICACIÓN: " + ubicacion);
                 respuesta = "STATUS#OK#Estacion: " + ubicacion + " registrada correctamente";
                 escribirSocket(skCliente, respuesta);
+                WM_Central_Thread.actualizarUbicacion(id_estacion, ubicacion);
                 //estado = "DISPONIBLE";
                 //updateConexion_BBDD(estado, id_estacion);
                 
@@ -233,7 +261,6 @@ public class WM_Central_Thread extends Thread {
                             updateConexion_BBDD("DESCONECTADA", id_estacion);
                         }
                     }
-
                 }
                 skCliente.close();
 

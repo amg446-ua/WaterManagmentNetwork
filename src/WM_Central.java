@@ -6,11 +6,14 @@ import java.sql.SQLException;
 public class WM_Central{
 
     public static void createTable(){
-        String url = "jdbc:sqlite:WM.db";
+        String url = "jdbc:sqlite:/app/data/WM.db";
         String sql = "CREATE TABLE IF NOT EXISTS aspersores (" +
                     "id TEXT PRIMARY KEY, " +
                     "estado TEXT, " +
-                    "operario_actual TEXT)";
+                    "operario_actual TEXT, " +
+                    "caudal_actual REAL DEFAULT 0, " + 
+                    "volumen_actual REAL DEFAULT 0, " +
+                    "ubicacion TEXT)";
 
         try (var conn = DriverManager.getConnection(url);
             var stmt = conn.createStatement()) {
@@ -22,9 +25,9 @@ public class WM_Central{
     }
 
     public static void createOperatorTable(){
-        String url = "jdbc:sqlite:/home/usuario/Documentos/Curso-26-27/SD/Practica/Water-Management/WM.db";
-        String sql = "CREATE TABLE IF NOT EXISTS operarios(" + 
-                    "id TEXT PRIMAY KEY, " + 
+        String url = "jdbc:sqlite:/app/data/WM.db";
+        String sql = "CREATE TABLE IF NOT EXISTS operarios (" + 
+                    "id TEXT PRIMARY KEY, " + 
                     "nombre TEXT)";
 
         try(var conn = DriverManager.getConnection(url); var stmt = conn.createStatement()){
@@ -36,7 +39,7 @@ public class WM_Central{
     }
 
     public static void insertartOperarios(){
-        String url = "jdbc:sqlite:/home/usuario/Documentos/Curso-26-27/SD/Practica/Water-Management/WM.db";
+        String url = "jdbc:sqlite:/app/data/WM.db";
         String sql = "INSERT OR IGNORE INTO operarios (id, nombre) VALUES (?, ?)";
 
         String[][] datos = {
@@ -61,15 +64,15 @@ public class WM_Central{
     }
 
     public static void insertarDatosPrueba(){
-        String url = "jdbc:sqlite:WM.db";
-        String sql = "INSERT OR IGNORE INTO aspersores (id, estado, operario_actual) VALUES (?, ?, ?)";
+        String url = "jdbc:sqlite:/app/data/WM.db";
+        String sql = "INSERT OR IGNORE INTO aspersores (id, estado, operario_actual, caudal_actual, volumen_actual, ubicacion) VALUES (?, ?, ?, ?, ?, ?)";
 
         String[][] datos = {
-            {"WS-01", "DESCONECTADA", "NULL"},
-            {"WS-02", "DESCONECTADA", "NULL"},
-            {"WS-03", "DESCONECTADA", "NULL"},
-            {"WS-04", "DESCONECTADA", "NULL"},
-            {"WS-05", "DESCONECTADA", "NULL"}
+            {"WS-01", "DESCONECTADA", "NULL", "-"},
+            {"WS-02", "DESCONECTADA", "NULL", "-"},
+            {"WS-03", "DESCONECTADA", "NULL", "-"},
+            {"WS-04", "DESCONECTADA", "NULL", "-"},
+            {"WS-05", "DESCONECTADA", "NULL", "-"}
         };
 
         try (var conn = DriverManager.getConnection(url);
@@ -83,6 +86,9 @@ public class WM_Central{
                 } else {
                     pstmt.setString(3, fila[2]);
                 }
+                pstmt.setDouble(4, 0.0);
+                pstmt.setDouble(5, 0.0); 
+                pstmt.setString(6, fila[3]); 
                 pstmt.executeUpdate();
             }
             System.out.println("Datos de prueba insertados.");
@@ -93,31 +99,32 @@ public class WM_Central{
     }
 
     public static void inicializarEstados(){
-    var url = "jdbc:sqlite:WM.db";
-    var sql = "UPDATE aspersores SET estado = 'DESCONECTADA'";
-    try (var conn = DriverManager.getConnection(url);
-        var pstmt = conn.prepareStatement(sql)) {
-        pstmt.executeUpdate();
-        //System.out.println(filas + " estaciones marcadas como DESCONECTADA al arrancar CENTRAL.");
-    } catch (SQLException e) {
-        System.err.println("Error inicializando estados: " + e.getMessage());
+        String url = "jdbc:sqlite:/app/data/WM.db";
+        var sql = "UPDATE aspersores SET estado = 'DESCONECTADA'";
+        try (var conn = DriverManager.getConnection(url);
+            var pstmt = conn.prepareStatement(sql)) {
+            pstmt.executeUpdate();
+            //System.out.println(filas + " estaciones marcadas como DESCONECTADA al arrancar CENTRAL.");
+        } catch (SQLException e) {
+            System.err.println("Error inicializando estados: " + e.getMessage());
+        }
     }
-}
+
 
     public static void main(String args[]){
 
-        
         String puerto_Servidor = "";
+        String broker = "";
 
         try{
-            if(args.length < 1){
-            System.out.println("Error. Número de argumentos inválidos");
-            System.out.println("$./Servidor <Puerto_Servidor>");
-            System.exit(1);
+            if(args.length < 2){
+                System.out.println("Error. Número de argumentos inválidos");
+                System.out.println("$./Servidor <Puerto_Servidor> <Broker_Kafka>");
+                System.exit(1);
             }
 
             puerto_Servidor = args[0];
-
+            broker = args[1];
 
             createTable();
             insertarDatosPrueba();
@@ -129,9 +136,9 @@ public class WM_Central{
             ServerSocket skServidor = new ServerSocket(Integer.parseInt(puerto_Servidor));
             System.out.println("Escucho el puerto " + puerto_Servidor);
 
-            new KafkaConsumer_Thread().start();
-            new KafkaPeticiones_Thread().start();
-            new MenuOperador_Thread().start();
+            new KafkaConsumer_Thread(broker).start();
+            new KafkaPeticiones_Thread(broker).start();
+            new MenuOperador_Thread(broker).start();
 
             for(;;){
                 Socket skCliente = skServidor.accept();

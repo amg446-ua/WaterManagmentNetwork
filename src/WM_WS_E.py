@@ -6,7 +6,7 @@ import time
 
 FORMAT = "utf-8" 
 HEADER = 1024
-DURACION_MAX = 30.0 #max tiempo regando
+DURACION_MAX = 20.0 #max tiempo regando
 CAUDAL_MIN = 8.0
 CAUDAL_MAX = 15.0
 
@@ -90,7 +90,11 @@ def main():
     if(len(sys.argv) == 3):
         
         IP_SERVER = sys.argv[1]
-        PORT = int(sys.argv[2])
+        try:
+            PORT = int(sys.argv[2])
+        except ValueError:
+            print("ERROR: El puerto tiene que ser un número entero")
+            return
         ADDR = (IP_SERVER, PORT)
 
         global simular_fuga, regando, dejar_regar, inicio_riego
@@ -99,85 +103,93 @@ def main():
         hilo_teclado.start()
 
 
-        while True:
-            try:
-                client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        try:
+            while True:
+                try:
+                    client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-                client.connect(ADDR)
-                print("[WM_WS_E] Conectado al servidor")
-
-                while True:
-                    mensaje = client.recv(HEADER).decode(FORMAT)
+                    client.connect(ADDR)
+                    print("[WM_WS_E] Conectado al servidor")
                     
-                    if not mensaje:
-                        print("[WM_WS_M] ha cerrado la conexión")
-                        break
-                    
-                    if mensaje.startswith("ORDEN#"):
-                        orden = mensaje.split("#")
-                        if orden[1] == "INICIAR_RIEGO":
-                            if not regando:
-                                print("[WM_WS_E] Orden de riego recibida desde Central.")
-                                regando = True
-                                inicio_riego = time.time()
-                                client.sendall("ACK#RIEGO_INICIADO".encode(FORMAT))
-                            else:
-                                client.sendall("ACK#YA_REGANDO".encode(FORMAT))
-                        elif orden[1] == "BLOQUEAR":
-                            if regando:
-                                print("[WM_WS_E] Orden de bloqueo recibida. Cortando riego en curso.")
-                                regando = False
-                                volumen_final = volumen_acumulado
-                                volumen_acumulado = 0.0
-                                client.sendall(f"ACK#BLOQUEADO_RIEGO_CORTADO#{volumen_final}".encode(FORMAT))
-                            else:
-                                print("[WM_WS_E] Orden de bloqueo recibida. Estación ya estaba parada.")
-                                client.sendall("ACK#BLOQUEADO".encode(FORMAT))
-                    
-                    if mensaje == "PING_HEALTH":
+                    while True:
+                        mensaje = client.recv(HEADER).decode(FORMAT)
                         
-                        if simular_fuga:
-                            print("PING HEALTH recibido. Envío a [WM_WS_M:] KO")
-                            client.sendall("KO".encode(FORMAT))
+                        if not mensaje:
+                            print("[WM_WS_M] ha cerrado la conexión")
                             break
-                        elif regando:
-                            if time.time() - inicio_riego >= DURACION_MAX:
-                                print(f"[WM_WS_E] Límite de tiempo de riego alcanzado ({DURACION_MAX}s).")
-                                regando = False
+                        
+                        if mensaje.startswith("ORDEN#"):
+                            orden = mensaje.split("#")
+                            if orden[1] == "INICIAR_RIEGO":
+                                if not regando:
+                                    print("[WM_WS_E] Orden de riego recibida desde Central.")
+                                    regando = True
+                                    inicio_riego = time.time()
+                                    client.sendall("ACK#RIEGO_INICIADO".encode(FORMAT))
+                                else:
+                                    client.sendall("ACK#YA_REGANDO".encode(FORMAT))
+                            elif orden[1] == "BLOQUEAR":
+                                if regando:
+                                    print("[WM_WS_E] Orden de bloqueo recibida. Cortando riego en curso.")
+                                    regando = False
+                                    volumen_final = volumen_acumulado
+                                    volumen_acumulado = 0.0
+                                    client.sendall(f"OK#FIN#{volumen_final}".encode(FORMAT))
+                                else:
+                                    print("[WM_WS_E] Orden de bloqueo recibida. Estación ya estaba parada.")
+                                    client.sendall("ACK#BLOQUEADO".encode(FORMAT))
+                        
+                        if mensaje == "PING_HEALTH":
+                            
+                            if simular_fuga:
+                                print("PING HEALTH recibido. Envío a [WM_WS_M:] KO")
+                                client.sendall("KO".encode(FORMAT))
+                                break
+                            elif regando:
+                                if time.time() - inicio_riego >= DURACION_MAX:
+                                    print(f"[WM_WS_E] Límite de tiempo de riego alcanzado ({DURACION_MAX}s).")
+                                    regando = False
+                                    respuesta = f"OK#FIN#{volumen_acumulado}"
+                                    print(respuesta)
+                                    client.sendall(respuesta.encode(FORMAT))
+                                    dejar_regar = False
+                                    volumen_acumulado = 0.0
+                                else:
+                                    caudal_actual = generar_caudal(caudal_actual)
+                                    volumen_acumulado = round(volumen_acumulado + caudal_actual / 60, 2)
+                                    respuesta = f"OK#REGANDO#{caudal_actual}#{volumen_acumulado}"
+                                    print(f"[WM_WS_E] Caudal: {caudal_actual} L/min | Volumen: {volumen_acumulado} L")
+                                    client.sendall(respuesta.encode(FORMAT))
+                            elif dejar_regar:
                                 respuesta = f"OK#FIN#{volumen_acumulado}"
-                                print(respuesta)
+                                print(f"[WM_WS_E] Riego finalizado. Volumen total: {volumen_acumulado} L")
                                 client.sendall(respuesta.encode(FORMAT))
                                 dejar_regar = False
                                 volumen_acumulado = 0.0
                             else:
-                                caudal_actual = generar_caudal(caudal_actual)
-                                volumen_acumulado = round(volumen_acumulado + caudal_actual / 60, 2)
-                                respuesta = f"OK#REGANDO#{caudal_actual}#{volumen_acumulado}"
-                                print(f"[WM_WS_E] Caudal: {caudal_actual} L/min | Volumen: {volumen_acumulado} L")
-                                client.sendall(respuesta.encode(FORMAT))
-                        elif dejar_regar:
-                            respuesta = f"OK#FIN#{volumen_acumulado}"
-                            print(f"[WM_WS_E] Riego finalizado. Volumen total: {volumen_acumulado} L")
-                            client.sendall(respuesta.encode(FORMAT))
-                            dejar_regar = False
-                            volumen_acumulado = 0.0
-                        else:
-                            print("PING HEALTH recibido. Envio a [WM_WS_M]: OK")
-                            client.sendall("OK".encode(FORMAT))
+                                print("PING HEALTH recibido. Envio a [WM_WS_M]: OK")
+                                client.sendall("OK".encode(FORMAT))
+                        
                     
+                    client.close()
+                except (OSError, ConnectionError) as e:
+                    print(f"[WM_WS_E] Error de conexión con Monitor: {e}")
+                finally:
+                    client.close()
+                    if simular_fuga:
+                        print("[WM_WS_E] Estación en avería. Esperando reparación antes de reconectar")
+                        while simular_fuga:
+                            time.sleep(1)
+                        print("[WM_WS_E] Avería reparada. Reconectando")
+                    else:
+                        print("[WM_WS_E] Desconectado de Monitor")
+                        time.sleep(3)
+        
+        except KeyboardInterrupt:
+            print("\n[WM_WS_E] Cierre solicitado (Ctrl+C). Cerrando conexión...")
+            if client:
                 client.close()
-            except (OSError, ConnectionError) as e:
-                print(f"[WM_WS_E] Error de conexión con Monitor: {e}")
-            finally:
-                client.close()
-                if simular_fuga:
-                    print("[WM_WS_E] Estación en avería. Esperando reparación antes de reconectar")
-                    while simular_fuga:
-                        time.sleep(1)
-                    print("[WM_WS_E] Avería reparada. Reconectando")
-                else:
-                    print("[WM_WS_E] Desconectado de Monitor")
-                    time.sleep(3)
+            print("[WM_WS_E] Saliendo.")
 
     else:
         print("ERROR: Número de argumentos inválido")

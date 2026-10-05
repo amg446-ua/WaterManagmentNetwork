@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>WM_Central — Panel de Monitorización</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #1a1a2e;
+            color: #eee;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 { text-align: center; color: #4fc3f7; }
+        .bloque { max-width: 900px; margin: 16px auto; }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            box-shadow: 0 0 15px rgba(0,0,0,0.5);
+        }
+        th, td { padding: 12px 16px; text-align: center; border-bottom: 1px solid #333; }
+        th { background-color: #16213e; color: #4fc3f7; }
+        tbody tr { cursor: pointer; }
+        tr.seleccionada { outline: 2px solid #4fc3f7; outline-offset: -2px; }
+        tr.estado-disponible { background-color: #2e7d32; }
+        tr.estado-regando { background-color: #2e7d32; animation: parpadeo 1.2s infinite; }
+        tr.estado-fuga { background-color: #c62828; }
+        tr.estado-fuera_de_servicio { background-color: #ef6c00; }
+        tr.estado-desconectada { background-color: #424242; }
+        @keyframes parpadeo { 0% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
+        .etiqueta-estado { font-weight: bold; padding: 4px 10px; border-radius: 6px; background-color: rgba(0,0,0,0.25); }
+        .tarjeta { background-color: #16213e; border: 1px solid #2a3a5a; border-radius: 10px; padding: 16px; }
+        .fila-botones { margin-top: 12px; display: flex; gap: 10px; flex-wrap: wrap; }
+        button { flex: 1; padding: 10px; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        button:disabled { opacity: 0.5; cursor: wait; }
+        .b-bloquear { background: #c62828; color: #fff; }
+        .b-activar { background: #2e7d32; color: #fff; }
+        .b-regar { background: #4fc3f7; color: #0a0a1a; }
+        .respuesta { margin-top: 12px; font-family: monospace; font-size: 0.9em; white-space: pre-wrap; color: #ccc; }
+        .gris { color: #888; font-size: 0.85em; }
+        #consola {
+            background: #0a0a1a; border: 1px solid #2a3a5a; border-radius: 8px;
+            height: 260px; overflow-y: auto; padding: 10px;
+            font-family: monospace; font-size: 0.82em; white-space: pre-wrap; color: #bbb;
+        }
+        .linea-error { color: #ef5350; }
+        .linea-ok { color: #81c784; }
+        .centrado { text-align: center; }
+        @media (max-width: 600px) { th, td { padding: 8px 4px; font-size: 0.85em; } }
+    </style>
+</head>
+<body>
+
+    <h1>WM_Central — Panel de Monitorización</h1>
+
+    <div class="bloque" style="overflow-x: auto;">
+        <table>
+            <thead>
+                <tr>
+                    <th>ID</th><th>Estado</th><th>Operario</th>
+                    <th>Caudal (L/min)</th><th>Volumen (L)</th><th>Ubicación</th>
+                </tr>
+            </thead>
+            <tbody id="cuerpo-tabla"></tbody>
+        </table>
+        <div id="ultima-actualizacion" class="gris centrado" style="margin-top: 8px;">Cargando...</div>
+    </div>
+
+    <div class="bloque tarjeta">
+        <strong id="titulo-seleccion">Haz clic en una estación de la tabla</strong>
+        <div class="fila-botones">
+            <button class="b-bloquear accion" data-orden="BLOQUEAR" data-destino="seleccion" disabled>Bloquear</button>
+            <button class="b-activar accion" data-orden="ACTIVAR" data-destino="seleccion" disabled>Activar</button>
+            <button class="b-regar accion" data-orden="INICIAR_RIEGO" data-destino="seleccion" disabled>Iniciar riego</button>
+        </div>
+        <div class="gris" style="margin-top: 16px;">Aplicar a TODAS las estaciones</div>
+        <div class="fila-botones">
+            <button class="b-bloquear accion" data-orden="BLOQUEAR" data-destino="TODAS">Bloquear todas</button>
+            <button class="b-activar accion" data-orden="ACTIVAR" data-destino="TODAS">Activar todas</button>
+            <button class="b-regar accion" data-orden="INICIAR_RIEGO" data-destino="TODAS">Regar todas</button>
+        </div>
+        <div id="respuesta" class="respuesta"></div>
+    </div>
+
+    <div class="bloque">
+        <div class="gris" style="margin-bottom: 6px;">Salida de WM_Central</div>
+        <div id="consola"></div>
+    </div>
+
+    <script>
+        let estacionSeleccionada = null;
+        let lineasLeidas = 0;
+
+        function claseLinea(texto) {
+            if (/ERROR|DENEGADO|FUGA|denegado/.test(texto)) return 'linea-error';
+            if (/enviada|AUTORIZADO|Autorizado/.test(texto)) return 'linea-ok';
+            return '';
+        }
+
+        function celda(texto) {
+            const td = document.createElement('td');
+            td.textContent = texto;
+            return td;
+        }
+
+        async function actualizarTabla() {
+            try {
+                const resp = await fetch('/api/estaciones');
+                const estaciones = await resp.json();
+                if (!resp.ok) throw new Error(estaciones.error);
+
+                const cuerpo = document.getElementById('cuerpo-tabla');
+                cuerpo.innerHTML = '';
+                for (const est of estaciones) {
+                    const fila = document.createElement('tr');
+                    fila.className = 'estado-' + String(est.estado || 'desconectada').toLowerCase();
+                    if (est.id === estacionSeleccionada) fila.classList.add('seleccionada');
+
+                    fila.appendChild(celda(est.id));
+                    const tdEstado = document.createElement('td');
+                    const etiqueta = document.createElement('span');
+                    etiqueta.className = 'etiqueta-estado';
+                    etiqueta.textContent = est.estado;
+                    tdEstado.appendChild(etiqueta);
+                    fila.appendChild(tdEstado);
+                    fila.appendChild(celda(est.operario_actual ?? '—'));
+                    fila.appendChild(celda(Number(est.caudal_actual ?? 0).toFixed(1)));
+                    fila.appendChild(celda(Number(est.volumen_actual ?? 0).toFixed(2)));
+                    fila.appendChild(celda(est.ubicacion ?? '—'));
+
+                    fila.addEventListener('click', () => seleccionar(est.id));
+                    cuerpo.appendChild(fila);
+                }
+                document.getElementById('ultima-actualizacion').textContent =
+                    'Última actualización: ' + new Date().toLocaleTimeString();
+            } catch (error) {
+                document.getElementById('ultima-actualizacion').textContent = 'Error leyendo estaciones: ' + error.message;
+            }
+        }
+
+        function seleccionar(id) {
+            estacionSeleccionada = id;
+            document.getElementById('titulo-seleccion').textContent = 'Estación seleccionada: ' + id;
+            document.querySelectorAll('[data-destino="seleccion"]').forEach(b => b.disabled = false);
+            actualizarTabla();
+        }
+
+        // El frontend solo pasa la orden a WM_Central; la respuesta es lo que imprime tu backend
+        async function enviarOrden(orden, estacion, botones) {
+            const div = document.getElementById('respuesta');
+            div.textContent = `Enviando ${orden} a ${estacion}...`;
+            botones.forEach(b => b.disabled = true);
+            try {
+                const resp = await fetch('/api/orden', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ estacion, orden })
+                });
+                const data = await resp.json();
+                if (data.ok) {
+                    div.textContent = data.respuesta.length
+                        ? data.respuesta.join('\n')
+                        : 'WM_Central no ha respondido todavía; mira la salida de abajo.';
+                } else {
+                    div.textContent = 'Error: ' + (data.error || 'desconocido');
+                }
+            } catch (error) {
+                div.textContent = 'Error de conexión: ' + error;
+            } finally {
+                botones.forEach(b => b.disabled = (b.dataset.destino === 'seleccion' && !estacionSeleccionada));
+            }
+        }
+
+        document.querySelectorAll('button.accion').forEach(boton => {
+            boton.addEventListener('click', () => {
+                const estacion = boton.dataset.destino === 'TODAS' ? 'TODAS' : estacionSeleccionada;
+                if (!estacion) return;
+                enviarOrden(boton.dataset.orden, estacion, document.querySelectorAll('button.accion'));
+            });
+        });
+
+        async function actualizarConsola() {
+            try {
+                const resp = await fetch('/api/consola?desde=' + lineasLeidas);
+                const data = await resp.json();
+                const consola = document.getElementById('consola');
+                const alFinal = consola.scrollTop + consola.clientHeight >= consola.scrollHeight - 5;
+                for (const texto of data.lineas) {
+                    const linea = document.createElement('div');
+                    linea.className = claseLinea(texto);
+                    linea.textContent = texto;
+                    consola.appendChild(linea);
+                }
+                lineasLeidas = data.total;
+                if (alFinal) consola.scrollTop = consola.scrollHeight;
+            } catch (error) {
+                console.error('Error leyendo la consola:', error);
+            }
+        }
+
+        actualizarTabla();
+        actualizarConsola();
+        setInterval(actualizarTabla, 1500);
+        setInterval(actualizarConsola, 1000);
+    </script>
+
+</body>
+</html>

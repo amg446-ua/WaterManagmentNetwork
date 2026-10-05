@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>WM_FO — Panel del Operario</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #1a1a2e;
+            color: #eee;
+            margin: 0;
+            padding: 20px;
+        }
+        h1 { text-align: center; color: #4fc3f7; margin-bottom: 4px; }
+        .subtitulo { text-align: center; color: #888; margin-bottom: 24px; }
+        .bloque { max-width: 700px; margin: 16px auto; }
+        .tarjeta { background-color: #16213e; border: 1px solid #2a3a5a; border-radius: 10px; padding: 16px; }
+        .titulo-tarjeta { color: #4fc3f7; font-size: 0.95em; margin-bottom: 10px; }
+        .fila { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+        input[type="text"] {
+            flex: 1; min-width: 140px; padding: 10px; border-radius: 6px;
+            border: 1px solid #2a3a5a; background: #0a0a1a; color: #eee; font-size: 1em;
+        }
+        input[type="file"] { flex: 1; min-width: 180px; color: #eee; }
+        button {
+            padding: 10px 18px; border: none; border-radius: 6px; cursor: pointer;
+            font-weight: bold; background: #4fc3f7; color: #0a0a1a;
+        }
+        button:disabled { opacity: 0.5; cursor: wait; }
+        .respuesta { margin-top: 12px; font-family: monospace; font-size: 0.9em; white-space: pre-wrap; color: #ccc; }
+        .gris { color: #888; font-size: 0.85em; }
+        #consola {
+            background: #0a0a1a; border: 1px solid #2a3a5a; border-radius: 8px;
+            height: 300px; overflow-y: auto; padding: 10px;
+            font-family: monospace; font-size: 0.82em; white-space: pre-wrap; color: #bbb;
+        }
+        .linea-error { color: #ef5350; }
+        .linea-ok { color: #81c784; }
+        .linea-info { color: #4fc3f7; }
+    </style>
+</head>
+<body>
+
+    <h1>WM_FO — Panel del Operario</h1>
+    <div class="subtitulo">Operario: <strong id="operario">...</strong></div>
+
+    <div class="bloque tarjeta">
+        <div class="titulo-tarjeta">Solicitar estación de riego</div>
+        <form id="form-solicitar" class="fila">
+            <input type="text" id="input-estacion" placeholder="WS-01" autocomplete="off">
+            <button type="submit" id="btn-solicitar">Solicitar riego</button>
+        </form>
+        <div id="respuesta-solicitar" class="respuesta"></div>
+    </div>
+
+    <div class="bloque tarjeta">
+        <div class="titulo-tarjeta">Peticiones por fichero</div>
+        <div class="gris" style="margin-bottom: 10px;">Un ID de estación por línea. WM_FO las procesa una a una.</div>
+        <form id="form-fichero" class="fila">
+            <input type="file" id="input-fichero" accept=".txt,text/plain">
+            <button type="submit" id="btn-fichero">Enviar fichero</button>
+        </form>
+        <div id="respuesta-fichero" class="respuesta"></div>
+    </div>
+
+    <div class="bloque">
+        <div class="gris" style="margin-bottom: 6px;">Salida de WM_FO (respuestas de Central, datos de riego y resúmenes)</div>
+        <div id="consola"></div>
+    </div>
+
+    <script>
+        let lineasLeidas = 0;
+
+        function claseLinea(texto) {
+            if (/DENEGADO|ERROR|Error|No se encontró/.test(texto)) return 'linea-error';
+            if (/AUTORIZADO|finalizado|completado/.test(texto)) return 'linea-ok';
+            if (/regando/.test(texto)) return 'linea-info';
+            return '';
+        }
+
+        function mostrarRespuesta(div, data, textoVacio) {
+            if (data.ok) {
+                div.textContent = data.respuesta.length ? data.respuesta.join('\n') : textoVacio;
+            } else {
+                div.textContent = 'Error: ' + (data.error || 'desconocido');
+            }
+        }
+
+        async function cargarOperario() {
+            try {
+                const data = await (await fetch('/api/operario')).json();
+                document.getElementById('operario').textContent = data.operario;
+            } catch (error) {
+                document.getElementById('operario').textContent = '(sin conexión)';
+            }
+        }
+
+        // El frontend solo pasa el ID a WM_FO; la respuesta es lo que imprime tu backend
+        document.getElementById('form-solicitar').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const estacion = document.getElementById('input-estacion').value.trim();
+            const div = document.getElementById('respuesta-solicitar');
+            const btn = document.getElementById('btn-solicitar');
+            if (!estacion) { div.textContent = 'Escribe el ID de una estación.'; return; }
+
+            div.textContent = 'Enviando petición a WM_FO...';
+            btn.disabled = true;
+            try {
+                const resp = await fetch('/api/solicitar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ estacion })
+                });
+                mostrarRespuesta(div, await resp.json(), 'Petición pasada a WM_FO; la respuesta aparecerá en la salida de abajo.');
+            } catch (error) {
+                div.textContent = 'Error de conexión: ' + error;
+            } finally {
+                btn.disabled = false;
+            }
+        });
+
+        document.getElementById('form-fichero').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const input = document.getElementById('input-fichero');
+            const div = document.getElementById('respuesta-fichero');
+            const btn = document.getElementById('btn-fichero');
+            if (!input.files.length) { div.textContent = 'Selecciona un fichero primero.'; return; }
+
+            const formData = new FormData();
+            formData.append('fichero', input.files[0]);
+            div.textContent = 'Pasando el fichero a WM_FO...';
+            btn.disabled = true;
+            try {
+                const resp = await fetch('/api/fichero', { method: 'POST', body: formData });
+                mostrarRespuesta(div, await resp.json(), 'Fichero pasado a WM_FO; el progreso aparecerá en la salida de abajo.');
+            } catch (error) {
+                div.textContent = 'Error de conexión: ' + error;
+            } finally {
+                btn.disabled = false;
+            }
+        });
+
+        async function actualizarConsola() {
+            try {
+                const data = await (await fetch('/api/consola?desde=' + lineasLeidas)).json();
+                const consola = document.getElementById('consola');
+                const alFinal = consola.scrollTop + consola.clientHeight >= consola.scrollHeight - 5;
+                for (const texto of data.lineas) {
+                    const linea = document.createElement('div');
+                    linea.className = claseLinea(texto);
+                    linea.textContent = texto;
+                    consola.appendChild(linea);
+                }
+                lineasLeidas = data.total;
+                if (alFinal) consola.scrollTop = consola.scrollHeight;
+            } catch (error) {
+                console.error('Error leyendo la consola:', error);
+            }
+        }
+
+        cargarOperario();
+        actualizarConsola();
+        setInterval(actualizarConsola, 1000);
+    </script>
+
+</body>
+</html>
