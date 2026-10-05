@@ -12,6 +12,8 @@ COPY src/index.html .
 COPY src/*.java ./src/
 COPY lib/*.jar ./lib/
 
+ENV PYTHONUNBUFFERED=1
+
 RUN javac -cp "lib/*" -d out src/*.java
 
 RUN pip install --no-cache-dir flask
