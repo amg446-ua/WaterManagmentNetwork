@@ -1,0 +1,9 @@
+[build]
+builder = "DOCKERFILE"
+dockerfilePath="Docker/front/Dockerfile"
+
+[deploy]
+healthcheckPath = "/"
+restartPolicyMaxRetries = 10
+restartPolicyType = "ON_FAILURE"
+startCommand = "python3 WM_Front.py 8080 5050 kafka:9092"
