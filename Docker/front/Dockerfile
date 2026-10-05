@@ -15,5 +15,3 @@ COPY lib/*.jar ./lib/
 RUN javac -cp "lib/*" -d out src/*.java
 
 RUN pip install --no-cache-dir flask
-
-ENTRYPOINT ["python3", "WM_Front.py"]
