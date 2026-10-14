@@ -54,7 +54,7 @@ def api_estaciones():
         conn = sqlite3.connect(f"file:{DB_PATH}?mode=ro", uri=True)
         conn.row_factory = sqlite3.Row
         filas = conn.execute(
-            "SELECT id, estado, operario_actual, caudal_actual, volumen_actual, ubicacion FROM aspersores"
+            "SELECT id, estado, operario_actual, caudal_actual, volumen_actual, ubicacion, direccion FROM aspersores"
         ).fetchall()
         conn.close()
     except sqlite3.Error as e:

@@ -17,7 +17,8 @@ public class WM_Central{
 
         try (var conn = DriverManager.getConnection(url);
             var stmt = conn.createStatement()) {
-            stmt.execute(sql);
+            //stmt.execute(sql);
+            stmt.execute("ALTER TABLE aspersores ADD COLUMN direccion TEXT DEFAULT '-'");
             System.out.println("Tabla 'aspersores' lista");
         } catch (SQLException e) {
             System.err.println("ERROR creando tabla: " + e.getMessage());
@@ -109,6 +110,23 @@ public class WM_Central{
             System.err.println("Error inicializando estados: " + e.getMessage());
         }
     }
+    
+    public static void actualizarUbicacion(String id_estacion, String ubicacionCompleta){
+    String[] partes = ubicacionCompleta.split("-", 2); // separa en MÁXIMO 2: ciudad | resto
+    String ciudad = partes[0];
+    String direccion = partes.length > 1 ? partes[1] : "-";
+
+    var url = "jdbc:sqlite:/app/data/WM.db";
+    var sql = "UPDATE aspersores SET ubicacion = ?, direccion = ? WHERE id = ?";
+    try (var conn = DriverManager.getConnection(url); var pstmt = conn.prepareStatement(sql)) {
+        pstmt.setString(1, ciudad);
+        pstmt.setString(2, direccion);
+        pstmt.setString(3, id_estacion);
+        pstmt.executeUpdate();
+    } catch (SQLException e) {
+        System.err.println("Error actualizando ubicación: " + e.getMessage());
+    }
+}
 
 
     public static void main(String args[]){
