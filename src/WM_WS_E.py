@@ -6,7 +6,7 @@ import time
 
 FORMAT = "utf-8" 
 HEADER = 1024
-DURACION_MAX = 20.0 #max tiempo regando
+DURACION_MAX = 50.0 #max tiempo regando
 CAUDAL_MIN = 8.0
 CAUDAL_MAX = 15.0
 
@@ -110,6 +110,20 @@ def main():
 
                     client.connect(ADDR)
                     print("[WM_WS_E] Conectado al servidor")
+
+
+                    # Si tumbamos Monitor, cuando vuelva a conectarse seguirá regando.
+                    if regando:
+                        if time.time() - inicio_riego >= DURACION_MAX:
+                            print(f"[WM_WS_E] El riego terminó mientras estábamos desconectados ({DURACION_MAX}s).")
+                            regando = False
+                            respuesta_pendiente = f"OK#FIN#{volumen_acumulado}"
+                            client.sendall(respuesta_pendiente.encode(FORMAT))
+                            volumen_acumulado = 0.0
+                        else:
+                            respuesta_pendiente = f"OK#REGANDO#{caudal_actual}#{volumen_acumulado}"
+                            client.sendall(respuesta_pendiente.encode(FORMAT))
+                        print(f"[WM_WS_E] Estado pendiente enviado tras reconectar: {respuesta_pendiente}")
                     
                     while True:
                         mensaje = client.recv(HEADER).decode(FORMAT)
