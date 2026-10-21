@@ -2,9 +2,8 @@ FROM eclipse-temurin:21-jdk-alpine
 
 WORKDIR /app
 
-COPY src/*.java ./src/
-COPY lib/*.jar ./lib/
-
+COPY WM_Central/*.java ./src/
+COPY WM_Central/lib/*.jar ./lib/
 
 RUN javac -cp "lib/*" -d out src/*.java
 

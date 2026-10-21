@@ -4,8 +4,8 @@ WORKDIR /app
 
 ENV PYTHONUNBUFFERED=1
 
-COPY /src/WM_WS_E.py .
+COPY WM_WS/WM_WS_E.py .
 
-RUN pip install --no-cache-dir kafka-python
+RUN pip install --no-cache-dir kafka-python-ng
 
 ENTRYPOINT ["python3", "WM_WS_E.py"]
