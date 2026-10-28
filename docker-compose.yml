@@ -33,7 +33,7 @@ services:
       - "8080:8080"
       - "5050:5050"
     container_name: wm-front
-    command: ["8080", "5050", "broker:9092"]
+    command: ["python3", "WM_Front.py", "8080", "5050", "broker:9092"]
     volumes:
       - ./data:/app/data
 

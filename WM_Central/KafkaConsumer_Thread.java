@@ -30,7 +30,7 @@ public class KafkaConsumer_Thread extends Thread{
                 props.put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
                 props.put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName());
                 props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest");
-
+                props.put("enable.auto.commit", "false"); 
                 KafkaConsumer<String, String> consumer = new KafkaConsumer<>(props);
                 consumer.subscribe(Arrays.asList("datos-riego", "fin-riego"));
                 
@@ -85,6 +85,7 @@ public class KafkaConsumer_Thread extends Thread{
                             }
                         }
                     }
+                    consumer.commitSync(); 
                 }
             } catch (Exception e) {
                 System.err.println("[KafkaConsumer_Thread] ERROR fatal: " + e.getMessage());

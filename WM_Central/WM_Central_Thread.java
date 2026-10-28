@@ -4,13 +4,19 @@ import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.io.*;
 import java.util.*;
+import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.ProducerConfig;
+import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.serialization.StringSerializer;
 
 public class WM_Central_Thread extends Thread {
 
     private Socket skCliente;
+    private String broker;
 
-    public WM_Central_Thread(Socket skCliente) {
+    public WM_Central_Thread(Socket skCliente, String broker) {
         this.skCliente = skCliente;
+        this.broker = broker;
     }
 
     public String leeSocket(Socket skCliente, String Cadena){
@@ -151,23 +157,6 @@ public class WM_Central_Thread extends Thread {
         }
     }
 
-
-    /*
-        public static void registrar_operario(String id_operario, String nombre){
-            String url = "jdbc:sqlite:/app/data/WM.db";
-            String sql = "INSERT INTO operarios (id, nombre) VALUES (?, ?)";
-
-            try(var conn = DriverManager.getConnection(url); var pstmt = conn.prepareStatement(sql)){
-
-                pstmt.setString(1, id_operario);
-                pstmt.setString(2, nombre);
-                pstmt.executeQuery();
-
-            }catch (SQLException e) {
-                System.err.println("Error leyendo operario_actual: " + e.getMessage());
-            }
-        }
-    */
     
     public static void actualizarUbicacion(String id_estacion, String ubicacion){
         String url = "jdbc:sqlite:/app/data/WM.db";
@@ -188,6 +177,13 @@ public class WM_Central_Thread extends Thread {
         String registro = "";
         String id_estacion = "";
         String ubicacion = "";
+
+        Properties producerProps = new Properties();
+        producerProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, this.broker);
+        producerProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
+        producerProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
+        KafkaProducer<String, String> producer = new KafkaProducer<>(producerProps);
+
 
         try{
             Cadena = this.leeSocket(skCliente, Cadena);
@@ -251,9 +247,17 @@ public class WM_Central_Thread extends Thread {
                     else if(Cadena.contains("ALERT")){
                         String[] partesAlerta = this.splitear(Cadena);
                         // Trama esperada = ALERT#id#FUGA
-                            if(partesAlerta[2].equals("FUGA")){
+                        if(partesAlerta[2].equals("FUGA")){
                             System.out.println("ALERTA DE FUGA Estación: " + id_estacion);
                             updateConexion_BBDD("FUGA", id_estacion);
+                            String id_operario = getOperarioActual(id_estacion);
+                            if (id_operario != null) {
+                                String aviso = id_operario + "#" + id_estacion + "#AVERIA: estación fuera de servicio por fuga";
+                                producer.send(new ProducerRecord<>("resumen-riego", aviso));
+                                producer.flush();
+                                System.out.println("[WM_Central] Aviso de fuga enviado a operario " + id_operario);
+                            }
+
                             this.escribirSocket(skCliente, "ACK#FUGA_RECIBIDA");
                         }
                         else if(partesAlerta[2].equals("DESCONECTADA")){

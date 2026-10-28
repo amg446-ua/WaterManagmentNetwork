@@ -80,10 +80,14 @@ def escuchar_resumen(id_operario):
             continue
 
         id_estacion = tramos[1]
-        volumen_total = tramos[2]
+        info = tramos[2]
 
-        print(f"\n[WM_FO] Riego finalizado en {id_estacion}. Volumen total suministrado: {volumen_total} L")
-        ultimo_resumen.update({"estacion": id_estacion, "volumen_total": volumen_total, "timestamp": time.time()})
+        if info.startswith("AVERIA"):
+            print(f"\n[WM_FO] ¡ATENCIÓN! {id_estacion} ha sufrido una avería: {info}")
+            ultimo_resumen.update({"estacion": id_estacion, "aviso": info, "timestamp": time.time()})
+        else:
+            print(f"\n[WM_FO] Riego finalizado en {id_estacion}. Volumen total suministrado: {info} L")
+            ultimo_resumen.update({"estacion": id_estacion, "volumen_total": info, "timestamp": time.time()})
 
         if estacion_activa == id_estacion:
             estacion_activa = None

@@ -96,7 +96,8 @@ def atender_engine(conn, MENSAJE):
                 print("[WM_WS_M] ERROR: El Engine se ha desconectado inesperadamente")
                 if sock_central:
                     tramo = splitear(MENSAJE)
-                    enviar_utf(sock_central, f"ALERT#{tramo[1]}#DESCONECTADA")
+                    enviar_utf(sock_central, f"ALERT#{tramo[1]}#FUGA")
+                    print("[WM_WS_M] Notificada alerta de FUGA a Central (Engine caído)")
                 break
 
             elif respuesta == "KO":

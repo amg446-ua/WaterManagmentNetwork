@@ -9,6 +9,7 @@ HEADER = 1024
 DURACION_MAX = 50.0 #max tiempo regando
 CAUDAL_MIN = 8.0
 CAUDAL_MAX = 15.0
+conectado_a_monitor = False
 
 def send(msg):
     message = msg.encode(FORMAT)
@@ -59,7 +60,7 @@ def menu_regando():
             break
 
 def menu():
-    global simular_fuga, regando, dejar_regar, inicio_riego
+    global simular_fuga, regando, dejar_regar, inicio_riego, conectado_a_monitor
     while True:
         print("SELECCIONE OPCIÓN DE [WM_WS_E] PARA RIEGO O FUGA\n")
         print("1. FUGA\n")
@@ -71,22 +72,25 @@ def menu():
             simular_fuga = True
             print("[WM_WS_E] *** ¡ATENCIÓN! Estado cambiado a KO (Fuga/Avería simulada) ***")
         if op == 2:
-            # Estado del WS en RIEGO
-            # Hay que mandar los datos de Caudal, Volumen acumulado e ID del operario
-            print("[WM_WS_E]: Activado sistema de riego ")
-            inicio_riego = time.time()
-            regando = True
-            menu_regando()
+            if not conectado_a_monitor:
+                print("[WM_WS_E] AVERIADA: Sin conexión con Monitor. No se puede iniciar riego manualmente")
+            else:
+                # Estado del WS en RIEGO
+                # Hay que mandar los datos de Caudal, Volumen acumulado e ID del operario
+                print("[WM_WS_E]: Activado sistema de riego ")
+                inicio_riego = time.time()
+                regando = True
+                menu_regando()
         elif op == 3:
             if simular_fuga:
                 simular_fuga = False
-                print("[WM_WS_E] Avería reparada. El sistema intentará reconectar.")
+                print("[WM_WS_E] Avería reparada. El sistema intentará reconectar")
             else:
                 print("[WM_WS_E] No hay ninguna avería activa.")
 
 def main():
 
-    global caudal_actual, volumen_acumulado
+    global caudal_actual, volumen_acumulado, conectado_a_monitor
     if(len(sys.argv) == 3):
         
         IP_SERVER = sys.argv[1]
@@ -110,7 +114,7 @@ def main():
 
                     client.connect(ADDR)
                     print("[WM_WS_E] Conectado al servidor")
-
+                    conectado_a_monitor = True
 
                     # Si tumbamos Monitor, cuando vuelva a conectarse seguirá regando.
                     if regando:
@@ -130,6 +134,7 @@ def main():
                         
                         if not mensaje:
                             print("[WM_WS_M] ha cerrado la conexión")
+                            conectado_a_monitor = False
                             break
                         
                         if mensaje.startswith("ORDEN#"):
@@ -188,6 +193,7 @@ def main():
                     client.close()
                 except (OSError, ConnectionError) as e:
                     print(f"[WM_WS_E] Error de conexión con Monitor: {e}")
+                    conectado_a_monitor = False
                 finally:
                     client.close()
                     if simular_fuga:

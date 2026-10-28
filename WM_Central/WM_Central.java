@@ -162,7 +162,7 @@ public class WM_Central{
                 Socket skCliente = skServidor.accept();
                 System.out.println("Esperando cliente...");
 
-                Thread t = new WM_Central_Thread(skCliente);
+                Thread t = new WM_Central_Thread(skCliente, broker);
                 t.start();
             }
         }catch(Exception e){
