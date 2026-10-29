@@ -67,6 +67,8 @@
         <div id="ultima-actualizacion" class="gris centrado" style="margin-top: 8px;">Cargando...</div>
     </div>
 
+    <div class="bloque" id="caja-error" style="display:none; background:#c62828; color:#fff; border-radius:8px; padding:12px 16px; font-weight:bold;"></div>
+
     <div class="bloque tarjeta">
         <strong id="titulo-seleccion">Haz clic en una estación de la tabla</strong>
         <div class="fila-botones">
@@ -93,7 +95,7 @@
         let lineasLeidas = 0;
 
         function claseLinea(texto) {
-            if (/ERROR|DENEGADO|FUGA|denegado/.test(texto)) return 'linea-error';
+            if (/ERROR|DENEGADO|FUGA|denegado|ADVERTENCIA/.test(texto)) return 'linea-error';
             if (/enviada|AUTORIZADO|Autorizado/.test(texto)) return 'linea-ok';
             return '';
         }
@@ -128,6 +130,7 @@
                     fila.appendChild(celda(Number(est.caudal_actual ?? 0).toFixed(1)));
                     fila.appendChild(celda(Number(est.volumen_actual ?? 0).toFixed(2)));
                     fila.appendChild(celda(est.ubicacion ?? '—'));
+                    fila.appendChild(celda(est.direccion ?? '—'));
 
                     fila.addEventListener('click', () => seleccionar(est.id));
                     cuerpo.appendChild(fila);
@@ -191,6 +194,12 @@
                     linea.className = claseLinea(texto);
                     linea.textContent = texto;
                     consola.appendChild(linea);
+
+                    if (claseLinea(texto) === 'linea-error') {
+                        const cajaError = document.getElementById('caja-error');
+                        cajaError.textContent = texto;
+                        cajaError.style.display = 'block';
+                    }
                 }
                 lineasLeidas = data.total;
                 if (alFinal) consola.scrollTop = consola.scrollHeight;
