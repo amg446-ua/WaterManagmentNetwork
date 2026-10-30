@@ -47,7 +47,7 @@ services:
     depends_on:
       - broker
       - wm-front
-    command: ["wm-front", "5050", "REGISTRO#WS-04#RiverPark", "0.0.0.0", "5051", "broker:9092"]
+    command: ["wm-front", "5050", "REGISTRO#WS-04#Alicante#Av/Calle1_12345", "0.0.0.0", "5051", "broker:9092"]
   
   wm-ws-e:
     build:

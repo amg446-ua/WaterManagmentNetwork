@@ -8,11 +8,18 @@ import org.apache.kafka.clients.producer.KafkaProducer;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.apache.kafka.clients.producer.ProducerRecord;
 import org.apache.kafka.common.serialization.StringSerializer;
+// Para la espera timeout del ws
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 
 public class WM_Central_Thread extends Thread {
 
     private Socket skCliente;
     private String broker;
+
+    // Mapa para almacenar los latches de espera por ID de estación
+    public static ConcurrentHashMap<String, CountDownLatch> estacionesPendientesActivacion = new ConcurrentHashMap<>();
 
     public WM_Central_Thread(Socket skCliente, String broker) {
         this.skCliente = skCliente;
@@ -45,7 +52,7 @@ public class WM_Central_Thread extends Thread {
     }
 
     public boolean validarCadena(String[] partes){
-        return partes.length == 3 && partes[0].equals("REGISTRO");
+        return partes.length == 4 && partes[0].equals("REGISTRO");
     }
 
     public String[] splitear(String Cadena){
@@ -158,17 +165,63 @@ public class WM_Central_Thread extends Thread {
     }
 
     
-    public static void actualizarUbicacion(String id_estacion, String ubicacion){
+    public static void actualizarUbicacion(String id_estacion, String direccion, String ubicacion){
         String url = "jdbc:sqlite:/app/data/WM.db";
-        String sql = "UPDATE aspersores SET ubicacion = ? WHERE id = ?";
+        String sql = "UPDATE aspersores SET ubicacion = ?, direccion = ? WHERE id = ?";
         try (var conn = DriverManager.getConnection(url);
             var pstmt = conn.prepareStatement(sql)) {
             pstmt.setString(1, ubicacion);
-            pstmt.setString(2, id_estacion);
+            pstmt.setString(2, direccion);
+            pstmt.setString(3, id_estacion);
             pstmt.executeUpdate();
         } catch (SQLException e) {
             System.err.println("Error actualizando ubicación: " + e.getMessage());
         }
+    }
+
+    public static void resetearWS(String id_ws) {
+        String url = "jdbc:sqlite:/app/data/WM.db";
+        String sql = "UPDATE aspersores SET operario_actual = ?, caudal_actual = ?, volumen_actual = ?, ubicacion = ? WHERE id = ?";
+
+        try (var conn = DriverManager.getConnection(url); var pstmt = conn.prepareStatement(sql)) {
+            
+            pstmt.setString(1, null);
+            pstmt.setDouble(2, 0.0);
+            pstmt.setDouble(3, 0.0);
+            pstmt.setString(4, "-");
+            pstmt.setString(5, id_ws);
+        
+            int filasAfectadas = pstmt.executeUpdate();
+            
+            if (filasAfectadas > 0) {
+                System.out.println("Aspersor con ID '" + id_ws + "' reseteado correctamente.");
+            } else {
+                System.out.println("Aviso: No se encontró ningún aspersor con el ID '" + id_ws + "'.");
+            }
+            
+        } catch (SQLException e) {
+            System.err.println("ERROR reseteando aspersor: " + e.getMessage());
+        }
+    }
+
+    public static List<String> obtenerEstacionesActivables() {
+        String url = "jdbc:sqlite:/app/data/WM.db";
+        String sql = "SELECT id FROM aspersores WHERE estado != 'DESACTIVADA'";
+        List<String> estaciones = new ArrayList<>();
+
+        try (var conn = DriverManager.getConnection(url);
+            var pstmt = conn.prepareStatement(sql);
+            var rs = pstmt.executeQuery()) {
+
+            while (rs.next()) {
+                estaciones.add(rs.getString("id"));
+            }
+
+        } catch (SQLException e) {
+            System.err.println("ERROR obteniendo estaciones activables: " + e.getMessage());
+        }
+
+        return estaciones;
     }
 
     public void run(){
@@ -177,6 +230,7 @@ public class WM_Central_Thread extends Thread {
         String registro = "";
         String id_estacion = "";
         String ubicacion = "";
+        String direccion = "";
 
         Properties producerProps = new Properties();
         producerProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, this.broker);
@@ -214,10 +268,11 @@ public class WM_Central_Thread extends Thread {
                 registro = partes[0];
                 id_estacion = partes[1];
                 ubicacion = partes[2];
+                direccion = partes[3];
                 System.out.println(registro + " ID_ESTACION: " + id_estacion + ", UBICACIÓN: " + ubicacion);
                 respuesta = "STATUS#OK#Estacion: " + ubicacion + " registrada correctamente";
                 escribirSocket(skCliente, respuesta);
-                WM_Central_Thread.actualizarUbicacion(id_estacion, ubicacion);
+                WM_Central_Thread.actualizarUbicacion(id_estacion, direccion, ubicacion);
                 //estado = "DISPONIBLE";
                 //updateConexion_BBDD(estado, id_estacion);
                 
@@ -228,6 +283,7 @@ public class WM_Central_Thread extends Thread {
                     if(Cadena == null || Cadena.isEmpty()) {
                         System.out.println("La estación " + id_estacion + " se ha desconectado.");
                         updateConexion_BBDD("DESCONECTADA", id_estacion);
+                        resetearWS(id_estacion);
                         break;
                     }
                     else if(Cadena.contains("CONNECT")){
@@ -237,6 +293,12 @@ public class WM_Central_Thread extends Thread {
                             System.out.println("MODO DISPONIBLE " + id_estacion);
                             updateConexion_BBDD("DISPONIBLE", id_estacion);
                             this.escribirSocket(skCliente, "ACK#DISPONIBILIDAD_RECIBIDA");
+
+                            // Comprobamos si hay una espera activa para esta estación y la liberamos
+                            CountDownLatch latch = estacionesPendientesActivacion.get(id_estacion);
+                            if (latch != null) {
+                                latch.countDown(); // Despierta al menú que estaba esperando
+                            }
                         }
                         else if(partesAlerta[2].equals("FUERA_DE_SERVICIO")){
                             System.out.println("MODO FUERA DE SERVICIO " + id_estacion);
@@ -256,6 +318,7 @@ public class WM_Central_Thread extends Thread {
                                 producer.send(new ProducerRecord<>("resumen-riego", aviso));
                                 producer.flush();
                                 System.out.println("[WM_Central] Aviso de fuga enviado a operario " + id_operario);
+                                resetearWS(id_estacion);
                             }
 
                             this.escribirSocket(skCliente, "ACK#FUGA_RECIBIDA");
@@ -263,6 +326,7 @@ public class WM_Central_Thread extends Thread {
                         else if(partesAlerta[2].equals("DESCONECTADA")){
                             System.out.println("ALERTA DE DESCONEXIÓN Estación: " + id_estacion);
                             updateConexion_BBDD("DESCONECTADA", id_estacion);
+                            resetearWS(id_estacion);
                         }
                     }
                 }

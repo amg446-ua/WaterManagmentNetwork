@@ -17,11 +17,20 @@ public class WM_Central{
 
         try (var conn = DriverManager.getConnection(url);
             var stmt = conn.createStatement()) {
-            //stmt.execute(sql);
-            stmt.execute("ALTER TABLE aspersores ADD COLUMN direccion TEXT DEFAULT '-'");
+            stmt.execute(sql);
+            //stmt.execute("ALTER TABLE aspersores ADD COLUMN direccion TEXT DEFAULT '-'");
             System.out.println("Tabla 'aspersores' lista");
         } catch (SQLException e) {
             System.err.println("ERROR creando tabla: " + e.getMessage());
+        }
+        String sqlAlter = "ALTER TABLE aspersores ADD COLUMN direccion TEXT DEFAULT '-'";
+        try (var conn = DriverManager.getConnection(url);
+            var stmt = conn.createStatement()) {
+            stmt.execute(sqlAlter);
+        } catch (SQLException e) {
+            if (!e.getMessage().contains("duplicate column name")) {
+                System.err.println("Aviso en ALTER TABLE: " + e.getMessage());
+            }
         }
     }
 
@@ -69,11 +78,11 @@ public class WM_Central{
         String sql = "INSERT OR IGNORE INTO aspersores (id, estado, operario_actual, caudal_actual, volumen_actual, ubicacion) VALUES (?, ?, ?, ?, ?, ?)";
 
         String[][] datos = {
-            {"WS-01", "DESCONECTADA", "NULL", "-"},
-            {"WS-02", "DESCONECTADA", "NULL", "-"},
-            {"WS-03", "DESCONECTADA", "NULL", "-"},
-            {"WS-04", "DESCONECTADA", "NULL", "-"},
-            {"WS-05", "DESCONECTADA", "NULL", "-"}
+            {"WS-01", "DESCONECTADA", "NULL", "NULL"},
+            {"WS-02", "DESCONECTADA", "NULL", "NULL"},
+            {"WS-03", "DESCONECTADA", "NULL", "NULL"},
+            {"WS-04", "DESCONECTADA", "NULL", "NULL"},
+            {"WS-05", "DESCONECTADA", "NULL", "NULL"}
         };
 
         try (var conn = DriverManager.getConnection(url);

@@ -32,7 +32,7 @@ public class KafkaConsumer_Thread extends Thread{
                 props.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest");
                 props.put("enable.auto.commit", "false"); 
                 KafkaConsumer<String, String> consumer = new KafkaConsumer<>(props);
-                consumer.subscribe(Arrays.asList("datos-riego", "fin-riego"));
+                consumer.subscribe(Arrays.asList("eventos-riego"));
                 
                 Properties producerProps = new Properties();
                 producerProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, this.broker);
@@ -41,7 +41,7 @@ public class KafkaConsumer_Thread extends Thread{
 
                 KafkaProducer<String, String> producer = new KafkaProducer<>(producerProps);
 
-                System.out.println("[WM_Central] Consumidor Kafka escuchando 'datos-riego' y 'fin-riego'...");
+                System.out.println("[WM_Central] Consumidor Kafka escuchando 'eventos-riego'");
 
                 while (true) {
                     ConsumerRecords<String, String> registros = consumer.poll(Duration.ofMillis(1000));
@@ -49,19 +49,20 @@ public class KafkaConsumer_Thread extends Thread{
                         String mensaje = registro.value();
                         String topic = registro.topic();
                         String[] partes = mensaje.split("#");
-
-                        if (topic.equals("datos-riego") && partes.length >= 3) {
-                            String id_estacion = partes[0];
-                            Double caudal = Double.parseDouble(partes[1]);
-                            Double volumen = Double.parseDouble(partes[2]);
+                        
+                        String tipo = partes[0];
+                        if (tipo.equals("DATOS")) {
+                            String id_estacion = partes[1];
+                            Double caudal = Double.parseDouble(partes[2]);
+                            Double volumen = Double.parseDouble(partes[3]);
                             System.out.println("[WM_Central] " + id_estacion + " regando -> Caudal: " + caudal + " L/min, Volumen: " + volumen + " L");
                             WM_Central_Thread.updateConexion_BBDD("REGANDO", id_estacion);
                             WM_Central_Thread.actualizarCaudalVolumen(id_estacion, caudal, volumen);
 
-                        } else if (topic.equals("fin-riego") && partes.length >= 2) {
-                            String id_estacion = partes[0];
-                            String volumen_total = partes[1];
-                            String motivo = partes[2];
+                        } else if (tipo.equals("FIN")) {
+                            String id_estacion = partes[1];
+                            String volumen_total = partes[2];
+                            String motivo = partes[3];
 
                             String id_operario = WM_Central_Thread.getOperarioActual(id_estacion);
 
