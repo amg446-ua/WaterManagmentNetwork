@@ -38,12 +38,50 @@
         .linea-error { color: #ef5350; }
         .linea-ok { color: #81c784; }
         .linea-info { color: #4fc3f7; }
+
+        /* --- Riego en curso --- */
+        .riego-cabecera { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+        .riego-estado-pill {
+            font-size: 0.78em; font-weight: bold; padding: 4px 12px; border-radius: 20px;
+            background: rgba(255,255,255,0.06); color: #999;
+        }
+        .riego-estado-pill.activo { background: rgba(67,196,99,0.15); color: #43c463; }
+        .riego-vacio { color: #888; font-size: 0.9em; }
+        .riego-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 10px;
+        }
+        .riego-dato {
+            background: #0a0a1a; border: 1px solid #2a3a5a; border-radius: 8px;
+            padding: 10px 12px;
+        }
+        .riego-dato-label { font-size: 0.7em; color: #888; text-transform: uppercase; letter-spacing: 0.5px; }
+        .riego-dato-valor { font-size: 1.15em; margin-top: 2px; font-weight: bold; color: #eaf6ff; }
+        .riego-dato-valor.caudal { color: #4fc3f7; }
+        .riego-barra-contenedor {
+            margin-top: 14px; height: 8px; border-radius: 4px; background: #0a0a1a;
+            border: 1px solid #2a3a5a; overflow: hidden; position: relative;
+        }
+        .riego-barra {
+            height: 100%; width: 35%; border-radius: 4px;
+            background: linear-gradient(90deg, #4fc3f7, #43c463);
+            animation: fluir 1.6s linear infinite;
+        }
+        @keyframes fluir {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(290%); }
+        }
     </style>
 </head>
 <body>
 
     <h1>WM_FO — Panel del Operario</h1>
     <div class="subtitulo">Operario: <strong id="operario">...</strong></div>
+
+    <div class="bloque" id="caja-error" style="display:none; background:#c62828; color:#fff; border-radius:8px; padding:12px 16px; font-weight:bold; align-items:center; justify-content:space-between; gap:12px;">
+        <span id="caja-error-texto"></span>
+        <button id="caja-error-cerrar" type="button" style="flex:none; background:transparent; color:#fff; border:none; font-size:1.2em; line-height:1; padding:0 4px; cursor:pointer;">&times;</button>
+    </div>
 
     <div class="bloque tarjeta">
         <div class="titulo-tarjeta">Solicitar estación de riego</div>
@@ -64,6 +102,23 @@
         <div id="respuesta-fichero" class="respuesta"></div>
     </div>
 
+    <div class="bloque tarjeta">
+        <div class="riego-cabecera">
+            <div class="titulo-tarjeta" style="margin-bottom: 0;">Riego en curso</div>
+            <span class="riego-estado-pill" id="riego-pill">Sin riego activo</span>
+        </div>
+        <div id="riego-vacio" class="riego-vacio">Cuando se inicie un riego, aquí verás la estación, el caudal y el volumen en vivo.</div>
+        <div id="riego-datos" style="display:none;">
+            <div class="riego-grid">
+                <div class="riego-dato"><div class="riego-dato-label">Estación</div><div class="riego-dato-valor" id="riego-estacion">—</div></div>
+                <div class="riego-dato"><div class="riego-dato-label">Caudal</div><div class="riego-dato-valor caudal" id="riego-caudal">—</div></div>
+                <div class="riego-dato"><div class="riego-dato-label">Volumen</div><div class="riego-dato-valor" id="riego-volumen">—</div></div>
+                <div class="riego-dato"><div class="riego-dato-label">Actualizado</div><div class="riego-dato-valor" id="riego-actualizado" style="font-size:0.9em;">—</div></div>
+            </div>
+            <div class="riego-barra-contenedor"><div class="riego-barra" id="riego-barra"></div></div>
+        </div>
+    </div>
+
     <div class="bloque">
         <div class="gris" style="margin-bottom: 6px;">Salida de WM_FO (respuestas de Central, datos de riego y resúmenes)</div>
         <div id="consola"></div>
@@ -71,9 +126,10 @@
 
     <script>
         let lineasLeidas = 0;
+        let riegoActivo = null; // { estacion, caudal, volumen, marcaTiempo }
 
         function claseLinea(texto) {
-            if (/DENEGADO|ERROR|Error|No se encontró/.test(texto)) return 'linea-error';
+            if (/DENEGADO|ERROR|Error|No se encontró|no responde/.test(texto)) return 'linea-error';
             if (/AUTORIZADO|finalizado|completado/.test(texto)) return 'linea-ok';
             if (/regando/.test(texto)) return 'linea-info';
             return '';
@@ -94,6 +150,69 @@
             } catch (error) {
                 document.getElementById('operario').textContent = '(sin conexión)';
             }
+        }
+
+        // --- Lectura de datos de riego desde las líneas de la consola ---
+        function extraerDatosRiego(texto) {
+            const estacion = texto.match(/WS-\d+/);
+            const caudal = texto.match(/caudal[^0-9]*(\d+(?:[.,]\d+)?)/i) || texto.match(/(\d+(?:[.,]\d+)?)\s*L\/min/i);
+            const volumen = texto.match(/volumen[^0-9]*(\d+(?:[.,]\d+)?)/i) || texto.match(/(\d+(?:[.,]\d+)?)\s*L\b(?!\/)/i);
+
+            if (!estacion || (!caudal && !volumen)) return null;
+            return {
+                estacion: estacion[0],
+                caudal: caudal ? parseFloat(caudal[1].replace(',', '.')) : null,
+                volumen: volumen ? parseFloat(volumen[1].replace(',', '.')) : null
+            };
+        }
+
+        function actualizarRiegoDesdeLinea(texto) {
+            if (/finalizado|completado|FUGA|DENEGADO/i.test(texto) && /WS-\d+/.test(texto)) {
+                const estacion = texto.match(/WS-\d+/)[0];
+                if (riegoActivo && riegoActivo.estacion === estacion) {
+                    riegoActivo = null;
+                }
+                renderRiego();
+                return;
+            }
+
+            const datos = extraerDatosRiego(texto);
+            if (!datos) return;
+
+            riegoActivo = riegoActivo && riegoActivo.estacion === datos.estacion ? riegoActivo : {};
+            riegoActivo.estacion = datos.estacion;
+            if (datos.caudal !== null) riegoActivo.caudal = datos.caudal;
+            if (datos.volumen !== null) riegoActivo.volumen = datos.volumen;
+            riegoActivo.marcaTiempo = Date.now();
+            renderRiego();
+        }
+
+        function renderRiego() {
+            const pill = document.getElementById('riego-pill');
+            const vacio = document.getElementById('riego-vacio');
+            const datos = document.getElementById('riego-datos');
+
+            if (!riegoActivo) {
+                pill.textContent = 'Sin riego activo';
+                pill.classList.remove('activo');
+                vacio.style.display = 'block';
+                datos.style.display = 'none';
+                return;
+            }
+
+            pill.textContent = 'Regando';
+            pill.classList.add('activo');
+            vacio.style.display = 'none';
+            datos.style.display = 'block';
+
+            document.getElementById('riego-estacion').textContent = riegoActivo.estacion;
+            document.getElementById('riego-caudal').textContent =
+                riegoActivo.caudal !== undefined && riegoActivo.caudal !== null ? riegoActivo.caudal.toFixed(1) + ' L/min' : '—';
+            document.getElementById('riego-volumen').textContent =
+                riegoActivo.volumen !== undefined && riegoActivo.volumen !== null ? riegoActivo.volumen.toFixed(2) + ' L' : '—';
+
+            const segundos = Math.max(0, Math.round((Date.now() - riegoActivo.marcaTiempo) / 1000));
+            document.getElementById('riego-actualizado').textContent = segundos < 2 ? 'ahora' : 'hace ' + segundos + 's';
         }
 
         // El frontend solo pasa el ID a WM_FO; la respuesta es lo que imprime tu backend
@@ -151,6 +270,12 @@
                     linea.className = claseLinea(texto);
                     linea.textContent = texto;
                     consola.appendChild(linea);
+                    if (claseLinea(texto) === 'linea-error') {
+                        const cajaError = document.getElementById('caja-error');
+                        document.getElementById('caja-error-texto').textContent = texto;
+                        cajaError.style.display = 'flex';
+                    }
+                    actualizarRiegoDesdeLinea(texto);
                 }
                 lineasLeidas = data.total;
                 if (alFinal) consola.scrollTop = consola.scrollHeight;
@@ -161,7 +286,11 @@
 
         cargarOperario();
         actualizarConsola();
+        document.getElementById('caja-error-cerrar').addEventListener('click', () => {
+            document.getElementById('caja-error').style.display = 'none';
+        });
         setInterval(actualizarConsola, 1000);
+        setInterval(renderRiego, 1000);
     </script>
 
 </body>

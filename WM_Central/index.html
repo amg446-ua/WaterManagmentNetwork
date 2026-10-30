@@ -13,6 +13,7 @@
             padding: 20px;
         }
         h1 { text-align: center; color: #4fc3f7; }
+        h2.titulo-seccion { text-align: center; color: #4fc3f7; font-size: 1.1em; margin: 32px 0 12px; }
         .bloque { max-width: 900px; margin: 16px auto; }
         table {
             width: 100%;
@@ -48,6 +49,104 @@
         .linea-ok { color: #81c784; }
         .centrado { text-align: center; }
         @media (max-width: 600px) { th, td { padding: 8px 4px; font-size: 0.85em; } }
+
+        /* --- Mapa de estaciones --- */
+        .mapa-fila { display: flex; gap: 20px; flex-wrap: wrap; align-items: flex-start; }
+        .mapa-lienzo {
+            flex: 2 1 420px;
+            position: relative;
+            background-color: #0b1220;
+            background-image:
+                linear-gradient(rgba(79,195,247,0.07) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(79,195,247,0.07) 1px, transparent 1px);
+            background-size: 34px 34px;
+            border: 1px solid #1f2d4a;
+            border-radius: 16px;
+            padding: 20px;
+            overflow: hidden;
+        }
+        .mapa-cabecera {
+            display: flex; justify-content: space-between; align-items: flex-start;
+            flex-wrap: wrap; gap: 10px; margin-bottom: 20px;
+        }
+        .mapa-titulo-principal small {
+            display: block; letter-spacing: 2px; text-transform: uppercase;
+            color: #5a6b8c; font-size: 0.65em; margin-bottom: 2px;
+        }
+        .mapa-titulo-principal strong { font-size: 1.05em; color: #eaf6ff; }
+        .mapa-contador { display: flex; gap: 12px; flex-wrap: wrap; font-size: 0.75em; color: #9fb3d1; }
+        .mapa-contador span { display: flex; align-items: center; gap: 5px; white-space: nowrap; }
+        .mapa-contador i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+
+        .mapa-regiones { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 22px; }
+        .mapa-zona {
+            position: relative;
+            background: radial-gradient(ellipse at center, rgba(79,195,247,0.09), rgba(79,195,247,0.015) 72%);
+            border: 1px solid rgba(79,195,247,0.18);
+            border-radius: 48% 52% 45% 55% / 58% 42% 58% 42%;
+            padding: 30px 16px 16px;
+            min-height: 150px;
+            transition: border-color 0.2s;
+        }
+        .mapa-zona:hover { border-color: rgba(79,195,247,0.4); }
+        .mapa-zona-titulo {
+            position: absolute; top: 14px; left: 20px;
+            font-size: 0.65em; letter-spacing: 1.5px; text-transform: uppercase; color: #6f8ab0;
+        }
+        .mapa-puntos { display: flex; flex-wrap: wrap; gap: 16px; justify-content: center; align-items: center; }
+        .estacion-punto {
+            display: flex; flex-direction: column; align-items: center; gap: 5px;
+            cursor: pointer; border: none; background: none; padding: 0;
+        }
+        .punto-circulo {
+            width: 16px; height: 16px; border-radius: 50%;
+            background-color: #45526e; border: 2px solid rgba(255,255,255,0.15);
+            box-shadow: 0 0 6px rgba(0,0,0,0.5);
+        }
+        .punto-circulo.estado-disponible { background-color: #43c463; box-shadow: 0 0 10px rgba(67,196,99,0.7); }
+        .punto-circulo.estado-regando { background-color: #43c463; box-shadow: 0 0 10px rgba(67,196,99,0.7); animation: parpadeo 1.2s infinite; }
+        .punto-circulo.estado-fuga { background-color: #ef5350; box-shadow: 0 0 10px rgba(239,83,80,0.7); }
+        .punto-circulo.estado-fuera_de_servicio { background-color: #ff9800; box-shadow: 0 0 10px rgba(255,152,0,0.7); }
+        .punto-circulo.estado-desconectada { background-color: #45526e; }
+        .estacion-punto.seleccionada .punto-circulo { outline: 3px solid #4fc3f7; outline-offset: 3px; }
+        .punto-etiqueta-fila { display: flex; align-items: center; gap: 5px; }
+        .punto-etiqueta { font-size: 0.68em; color: #9fb3d1; font-family: monospace; }
+        .punto-regando-texto { font-size: 0.62em; color: #43c463; }
+
+        .mapa-leyenda {
+            display: flex; flex-wrap: wrap; gap: 14px; justify-content: center;
+            margin-top: 18px; font-size: 0.8em; color: #999;
+        }
+        .mapa-leyenda span { display: flex; align-items: center; gap: 6px; }
+        .mapa-leyenda i { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+
+        .mapa-eventos {
+            flex: 1 1 240px;
+            background-color: #16213e; border: 1px solid #2a3a5a; border-radius: 14px;
+            padding: 16px; max-height: 420px; overflow-y: auto;
+        }
+        .mapa-eventos-titulo { font-size: 0.7em; letter-spacing: 1.5px; text-transform: uppercase; color: #6f8ab0; margin-bottom: 12px; }
+        .evento-fila { display: flex; gap: 8px; padding: 8px 0; border-bottom: 1px solid #22304f; }
+        .evento-fila:last-child { border-bottom: none; }
+        .evento-punto { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; background: #43c463; }
+        .evento-punto.error { background: #ef5350; }
+        .evento-texto { font-size: 0.8em; color: #dbe6f5; line-height: 1.3; }
+        .evento-tiempo { font-size: 0.68em; color: #6f8ab0; margin-top: 2px; }
+        .mapa-eventos-vacio { font-size: 0.8em; color: #6f8ab0; }
+
+        /* --- Ficha de detalle de estación --- */
+        .ficha-cabecera { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+        .ficha-id { font-size: 1.3em; font-weight: bold; }
+        .ficha-grid {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+            gap: 10px; margin: 16px 0;
+        }
+        .ficha-dato {
+            background: #0a0a1a; border: 1px solid #2a3a5a; border-radius: 8px;
+            padding: 8px 10px;
+        }
+        .ficha-dato-label { font-size: 0.7em; color: #888; text-transform: uppercase; letter-spacing: 0.5px; }
+        .ficha-dato-valor { font-size: 1em; margin-top: 2px; }
     </style>
 </head>
 <body>
@@ -67,10 +166,53 @@
         <div id="ultima-actualizacion" class="gris centrado" style="margin-top: 8px;">Cargando...</div>
     </div>
 
-    <div class="bloque" id="caja-error" style="display:none; background:#c62828; color:#fff; border-radius:8px; padding:12px 16px; font-weight:bold;"></div>
+    <div class="bloque" id="caja-error" style="display:none; background:#c62828; color:#fff; border-radius:8px; padding:12px 16px; font-weight:bold; align-items:center; justify-content:space-between; gap:12px;">
+        <span id="caja-error-texto"></span>
+        <button id="caja-error-cerrar" type="button" style="flex:none; background:transparent; color:#fff; border:none; font-size:1.2em; line-height:1; padding:0 4px; cursor:pointer;">&times;</button>
+    </div>
+
+    <h2 class="titulo-seccion">Mapa de estaciones</h2>
+    <div class="bloque" style="max-width: 1100px;">
+        <div class="mapa-fila">
+            <div class="mapa-lienzo">
+                <div class="mapa-cabecera">
+                    <div class="mapa-titulo-principal">
+                        <small>WM_Central · Red de riego</small>
+                        <strong>Mapa de estaciones</strong>
+                    </div>
+                    <div class="mapa-contador" id="mapa-contador"></div>
+                </div>
+                <div id="mapa-contenedor" class="mapa-regiones"></div>
+                <div class="mapa-leyenda">
+                    <span><i style="background:#43c463;"></i> Disponible / Regando</span>
+                    <span><i style="background:#ef5350;"></i> Fuga</span>
+                    <span><i style="background:#ff9800;"></i> Fuera de servicio</span>
+                    <span><i style="background:#45526e;"></i> Desconectada</span>
+                </div>
+            </div>
+            <div class="mapa-eventos">
+                <div class="mapa-eventos-titulo">Eventos recientes</div>
+                <div id="lista-eventos"><div class="mapa-eventos-vacio">Sin eventos todavía</div></div>
+            </div>
+        </div>
+    </div>
 
     <div class="bloque tarjeta">
-        <strong id="titulo-seleccion">Haz clic en una estación de la tabla</strong>
+        <div id="ficha-vacia">Haz clic en una estación de la tabla o del mapa</div>
+        <div id="ficha-detalle" style="display:none;">
+            <div class="ficha-cabecera">
+                <span class="ficha-id" id="ficha-id">WS-00</span>
+                <span class="etiqueta-estado" id="ficha-estado">—</span>
+            </div>
+            <div class="ficha-grid">
+                <div class="ficha-dato"><div class="ficha-dato-label">Operario</div><div class="ficha-dato-valor" id="ficha-operario">—</div></div>
+                <div class="ficha-dato"><div class="ficha-dato-label">Caudal</div><div class="ficha-dato-valor" id="ficha-caudal">—</div></div>
+                <div class="ficha-dato"><div class="ficha-dato-label">Volumen</div><div class="ficha-dato-valor" id="ficha-volumen">—</div></div>
+                <div class="ficha-dato"><div class="ficha-dato-label">Ubicación</div><div class="ficha-dato-valor" id="ficha-ubicacion">—</div></div>
+                <div class="ficha-dato"><div class="ficha-dato-label">Dirección</div><div class="ficha-dato-valor" id="ficha-direccion">—</div></div>
+            </div>
+        </div>
+
         <div class="fila-botones">
             <button class="b-bloquear accion" data-orden="BLOQUEAR" data-destino="seleccion" disabled>Bloquear</button>
             <button class="b-activar accion" data-orden="ACTIVAR" data-destino="seleccion" disabled>Activar</button>
@@ -93,6 +235,23 @@
     <script>
         let estacionSeleccionada = null;
         let lineasLeidas = 0;
+        let ultimasEstaciones = [];
+        let eventosRecientes = [];
+
+        const ETIQUETAS_ESTADO = {
+            disponible: 'Disponible',
+            regando: 'Regando',
+            fuga: 'Fuga',
+            fuera_de_servicio: 'Fuera de servicio',
+            desconectada: 'Desconectada'
+        };
+        const COLORES_ESTADO = {
+            disponible: '#43c463',
+            regando: '#43c463',
+            fuga: '#ef5350',
+            fuera_de_servicio: '#ff9800',
+            desconectada: '#45526e'
+        };
 
         function claseLinea(texto) {
             if (/ERROR|DENEGADO|FUGA|denegado|ADVERTENCIA/.test(texto)) return 'linea-error';
@@ -106,11 +265,159 @@
             return td;
         }
 
+        function actualizarFicha() {
+            const est = ultimasEstaciones.find(e => e.id === estacionSeleccionada);
+            const vacia = document.getElementById('ficha-vacia');
+            const detalle = document.getElementById('ficha-detalle');
+
+            if (!est) {
+                vacia.style.display = 'block';
+                detalle.style.display = 'none';
+                return;
+            }
+
+            vacia.style.display = 'none';
+            detalle.style.display = 'block';
+            document.getElementById('ficha-id').textContent = est.id;
+            document.getElementById('ficha-estado').textContent = est.estado;
+            document.getElementById('ficha-operario').textContent = est.operario_actual ?? '—';
+            document.getElementById('ficha-caudal').textContent = Number(est.caudal_actual ?? 0).toFixed(1) + ' L/min';
+            document.getElementById('ficha-volumen').textContent = Number(est.volumen_actual ?? 0).toFixed(2) + ' L';
+            document.getElementById('ficha-ubicacion').textContent = est.ubicacion ?? '—';
+            document.getElementById('ficha-direccion').textContent = est.direccion ?? '—';
+        }
+
+        function dibujarMapa(estaciones) {
+            const contenedor = document.getElementById('mapa-contenedor');
+            contenedor.innerHTML = '';
+
+            const zonas = new Map();
+            for (const est of estaciones) {
+                const nombreZona = est.ubicacion && est.ubicacion !== '-' ? est.ubicacion : 'Sin ubicación';
+                if (!zonas.has(nombreZona)) zonas.set(nombreZona, []);
+                zonas.get(nombreZona).push(est);
+            }
+
+            for (const [nombreZona, estacionesZona] of zonas) {
+                const zonaDiv = document.createElement('div');
+                zonaDiv.className = 'mapa-zona';
+
+                const titulo = document.createElement('div');
+                titulo.className = 'mapa-zona-titulo';
+                titulo.textContent = nombreZona;
+                zonaDiv.appendChild(titulo);
+
+                const puntos = document.createElement('div');
+                puntos.className = 'mapa-puntos';
+
+                for (const est of estacionesZona) {
+                    const estadoNormalizado = String(est.estado || 'desconectada').toLowerCase();
+
+                    const boton = document.createElement('button');
+                    boton.className = 'estacion-punto';
+                    if (est.id === estacionSeleccionada) boton.classList.add('seleccionada');
+                    boton.title = est.direccion && est.direccion !== '-' ? est.direccion : est.id;
+
+                    const circulo = document.createElement('div');
+                    circulo.className = 'punto-circulo estado-' + estadoNormalizado;
+
+                    const filaEtiqueta = document.createElement('div');
+                    filaEtiqueta.className = 'punto-etiqueta-fila';
+
+                    const etiqueta = document.createElement('span');
+                    etiqueta.className = 'punto-etiqueta';
+                    etiqueta.textContent = est.id;
+                    filaEtiqueta.appendChild(etiqueta);
+
+                    if (estadoNormalizado === 'regando') {
+                        const regando = document.createElement('span');
+                        regando.className = 'punto-regando-texto';
+                        regando.textContent = '· regando';
+                        filaEtiqueta.appendChild(regando);
+                    }
+
+                    boton.appendChild(circulo);
+                    boton.appendChild(filaEtiqueta);
+                    boton.addEventListener('click', () => seleccionar(est.id));
+                    puntos.appendChild(boton);
+                }
+
+                zonaDiv.appendChild(puntos);
+                contenedor.appendChild(zonaDiv);
+            }
+        }
+
+        function actualizarContador(estaciones) {
+            const conteo = {};
+            for (const est of estaciones) {
+                const estadoNormalizado = String(est.estado || 'desconectada').toLowerCase();
+                conteo[estadoNormalizado] = (conteo[estadoNormalizado] || 0) + 1;
+            }
+
+            const contenedor = document.getElementById('mapa-contador');
+            contenedor.innerHTML = '';
+            for (const estado of ['disponible', 'regando', 'fuga', 'fuera_de_servicio', 'desconectada']) {
+                if (!conteo[estado]) continue;
+                const span = document.createElement('span');
+                const punto = document.createElement('i');
+                punto.style.background = COLORES_ESTADO[estado];
+                span.appendChild(punto);
+                span.appendChild(document.createTextNode(conteo[estado] + ' ' + ETIQUETAS_ESTADO[estado]));
+                contenedor.appendChild(span);
+            }
+        }
+
+        function formatoRelativo(marcaTiempo) {
+            const segundos = Math.max(0, Math.round((Date.now() - marcaTiempo) / 1000));
+            if (segundos < 60) return 'hace ' + segundos + 's';
+            const minutos = Math.round(segundos / 60);
+            if (minutos < 60) return 'hace ' + minutos + 'm';
+            const horas = Math.round(minutos / 60);
+            return 'hace ' + horas + 'h';
+        }
+
+        function registrarEvento(texto, esError) {
+            eventosRecientes.unshift({ texto, esError, marcaTiempo: Date.now() });
+            if (eventosRecientes.length > 8) eventosRecientes.length = 8;
+        }
+
+        function renderEventos() {
+            const lista = document.getElementById('lista-eventos');
+            if (eventosRecientes.length === 0) {
+                lista.innerHTML = '<div class="mapa-eventos-vacio">Sin eventos todavía</div>';
+                return;
+            }
+            lista.innerHTML = '';
+            for (const evento of eventosRecientes) {
+                const fila = document.createElement('div');
+                fila.className = 'evento-fila';
+
+                const punto = document.createElement('div');
+                punto.className = 'evento-punto' + (evento.esError ? ' error' : '');
+
+                const textoCol = document.createElement('div');
+                const texto = document.createElement('div');
+                texto.className = 'evento-texto';
+                texto.textContent = evento.texto;
+                const tiempo = document.createElement('div');
+                tiempo.className = 'evento-tiempo';
+                tiempo.textContent = formatoRelativo(evento.marcaTiempo);
+                textoCol.appendChild(texto);
+                textoCol.appendChild(tiempo);
+
+                fila.appendChild(punto);
+                fila.appendChild(textoCol);
+                lista.appendChild(fila);
+            }
+        }
+
         async function actualizarTabla() {
             try {
                 const resp = await fetch('/api/estaciones');
                 const estaciones = await resp.json();
                 if (!resp.ok) throw new Error(estaciones.error);
+
+                ultimasEstaciones = estaciones;
 
                 const cuerpo = document.getElementById('cuerpo-tabla');
                 cuerpo.innerHTML = '';
@@ -137,6 +444,10 @@
                 }
                 document.getElementById('ultima-actualizacion').textContent =
                     'Última actualización: ' + new Date().toLocaleTimeString();
+
+                dibujarMapa(estaciones);
+                actualizarContador(estaciones);
+                actualizarFicha();
             } catch (error) {
                 document.getElementById('ultima-actualizacion').textContent = 'Error leyendo estaciones: ' + error.message;
             }
@@ -144,7 +455,6 @@
 
         function seleccionar(id) {
             estacionSeleccionada = id;
-            document.getElementById('titulo-seleccion').textContent = 'Estación seleccionada: ' + id;
             document.querySelectorAll('[data-destino="seleccion"]').forEach(b => b.disabled = false);
             actualizarTabla();
         }
@@ -195,14 +505,20 @@
                     linea.textContent = texto;
                     consola.appendChild(linea);
 
-                    if (claseLinea(texto) === 'linea-error') {
+                    const clase = claseLinea(texto);
+                    if (clase === 'linea-error') {
                         const cajaError = document.getElementById('caja-error');
-                        cajaError.textContent = texto;
-                        cajaError.style.display = 'block';
+                        document.getElementById('caja-error-texto').textContent = texto;
+                        cajaError.style.display = 'flex';
+                    }
+
+                    if (/WS-\d+/.test(texto)) {
+                        registrarEvento(texto, clase === 'linea-error');
                     }
                 }
                 lineasLeidas = data.total;
                 if (alFinal) consola.scrollTop = consola.scrollHeight;
+                renderEventos();
             } catch (error) {
                 console.error('Error leyendo la consola:', error);
             }
@@ -210,6 +526,9 @@
 
         actualizarTabla();
         actualizarConsola();
+        document.getElementById('caja-error-cerrar').addEventListener('click', () => {
+            document.getElementById('caja-error').style.display = 'none';
+        });
         setInterval(actualizarTabla, 1500);
         setInterval(actualizarConsola, 1000);
     </script>
