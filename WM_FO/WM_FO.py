@@ -11,8 +11,9 @@ producer = None
 consumer_respuestas = None
 consumer_datos = None
 consumer_resume = None
+resultado_pendiente_op1 = threading.Event()
+estacion_pendiente_op1 = None
 
-# 
 ultima_respuesta = {}
 ultimo_resumen = {}
 
@@ -20,7 +21,7 @@ resultado_pendiente = threading.Event()
 estacion_pendiente_fichero = None
 
 def escuchar_respuestas(id_operario):
-    global estacion_activa, consumer_respuestas
+    global estacion_activa, consumer_respuestas, resultado_pendiente_op1, estacion_pendiente_op1
 
     for mensaje in consumer_respuestas:
         valor = mensaje.value.decode(FORMAT)
@@ -40,11 +41,15 @@ def escuchar_respuestas(id_operario):
             ultima_respuesta.update({"estacion": id_estacion, "resultado": "DENEGADO", "motivo": motivo, "timestamp": time.time()})
             if id_estacion == estacion_pendiente_fichero:
                 resultado_pendiente.set()
+            if id_estacion == estacion_pendiente_op1:
+                resultado_pendiente_op1.set()
         
         elif tramos[2] == "AUTORIZADO":
             print(f"[WM_FO] Riego AUTORIZADO en {id_estacion}")
             estacion_activa = id_estacion
             ultima_respuesta.update({"estacion": id_estacion, "resultado": "AUTORIZADO", "motivo": None, "timestamp": time.time()})
+            if id_estacion == estacion_pendiente_op1:
+                resultado_pendiente_op1.set()
 
 def escuchar_datos_riego():
     global estacion_activa, consumer_datos
@@ -53,17 +58,20 @@ def escuchar_datos_riego():
         valor = mensaje.value.decode(FORMAT)
         tramos = valor.split("#")
 
-        if len(tramos) < 3:
+        if len(tramos) < 4:
             continue
         
 
-        if estacion_activa != tramos[0]:
+        if estacion_activa != tramos[1]:
             continue
         
-        id_estacion = tramos[0]
-        caudal = tramos[1]
-        volumen = tramos[2]
+        tipo = tramos[0]
+        id_estacion = tramos[1]
+        caudal = tramos[2]
+        volumen = tramos[3]
 
+        if tipo == "FIN":
+            continue
         print(f"\n[WM_FO] {id_estacion} regando -> Caudal: {caudal} L/min, Volumen: {volumen} L")
 
 def escuchar_resumen(id_operario):
@@ -141,7 +149,7 @@ def escuchar_kafka(broker, id_operario):
     )
 
     consumer_datos = KafkaConsumer(
-        'datos-riego',
+        'eventos-riego',
         bootstrap_servers=broker,
         api_version=(2, 8, 0),
         auto_offset_reset="latest",
@@ -167,7 +175,7 @@ def escuchar_kafka(broker, id_operario):
 
 def main():
 
-    global producer, consumer_respuestas, consumer_datos, consumer_resume
+    global producer, consumer_respuestas, consumer_datos, consumer_resume, estacion_pendiente_op1, resultado_pendiente_op1
 
     if len(sys.argv) == 3:
         
@@ -200,11 +208,18 @@ def main():
 
                 if op == 1:
                     id_estacion = input("ID de la estación a regar: ")
+                    estacion_pendiente_op1 = id_estacion
+                    resultado_pendiente_op1.clear()
                     mensaje = f"{id_operario}#{id_estacion}"
                     producer.send('peticiones-riego', mensaje.encode(FORMAT))
                     producer.flush()
                     print(f"[WM_FO] Petición enviada: {mensaje}")
-                    time.sleep(4)
+                    #time.sleep(4)
+                    recibido = resultado_pendiente_op1.wait(timeout=4.0)
+                    if not recibido:
+                        print(f"[WM_FO] Central no responde. Se ha caído")
+                    
+                    estacion_pendiente_op1 = None
 
                 elif op == 2:
                     ruta = "fichero-fo"

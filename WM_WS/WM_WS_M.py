@@ -120,8 +120,9 @@ def atender_engine(conn, MENSAJE):
                     caudal, volumen = trama[2], trama[3]
                     print(f"[WM_WS_M] Regando -> Caudal: {caudal} L/min, Volumen: {volumen} L")
                     tramo = splitear(MENSAJE)
-                    mensaje_kafka = f"{tramo[1]}#{caudal}#{volumen}"
-                    producer_kafka.send('datos-riego', mensaje_kafka.encode(FORMAT))
+                    tipo = "DATOS"
+                    mensaje_kafka = f"{tipo}#{tramo[1]}#{caudal}#{volumen}"
+                    producer_kafka.send('eventos-riego', value=mensaje_kafka.encode(FORMAT), key=tramo[1].encode(FORMAT))
                     producer_kafka.flush()
 
                 elif len(trama) > 1 and trama[1] == "FIN":
@@ -129,13 +130,15 @@ def atender_engine(conn, MENSAJE):
                     print(f"[WM_WS_M] Riego finalizado. Volumen total: {volumen_total} L")
                     tramo = splitear(MENSAJE)
                     if bloq:
-                        mensaje_kafka = f"{tramo[1]}#{volumen_total}#BLOQUEO"
-                        producer_kafka.send('fin-riego', mensaje_kafka.encode(FORMAT))
+                        tipo = "FIN"
+                        mensaje_kafka = f"{tipo}#{tramo[1]}#{volumen_total}#BLOQUEO"
+                        producer_kafka.send('eventos-riego', value=mensaje_kafka.encode(FORMAT), key=tramo[1].encode(FORMAT))
                         producer_kafka.flush()
                         bloq = False
                     else:
-                        mensaje_kafka = f"{tramo[1]}#{volumen_total}#NORMAL"
-                        producer_kafka.send('fin-riego', mensaje_kafka.encode(FORMAT))
+                        tipo = "FIN"
+                        mensaje_kafka = f"{tipo}#{tramo[1]}#{volumen_total}#NORMAL"
+                        producer_kafka.send('eventos-riego', value=mensaje_kafka.encode(FORMAT), key=tramo[1].encode(FORMAT))
                         producer_kafka.flush()
 
             time.sleep(1)
