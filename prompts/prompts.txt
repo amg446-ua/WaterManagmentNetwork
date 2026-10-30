@@ -1,0 +1,108 @@
+Tenía un error y ya está solucionado solucionado, era porque tenía el hilo t_client con daemon=True, lo he quitado y ya me funciona
+
+Pero entonces lo que debo hacer es crear otro hilo, o sea otra clase mas. Donde atienda al menu. Y esta como le pasa el mensaje al WS correspondiente si lo hago desde un hilo diferente al que se conecta el WS?
+
+Vale, mi intención es dejar terminado hoy todo lo que implica conexión mediante sockets. Para luego ir a completarla con conexión mediante kafka y luego hacer el frontend.
+De momento llevo el que se conecte WM_WS_M a WM_Central, hasta que WM_WS_M no se conecta a WM_WS_M y le empieza a mandar OK esta no sale como DISPONIBLE en la bbdd. Luego si hay error con WM_WS_E este le manda un KO a WM_WS_M que se detiene la conexión entre estas dos y WM_WM_M notifica a WM_Central de error, marcando en la bbdd como FUGA. Luego si se vuelve a conectar WM_WS_E a WM_WS_M se vuelve a poner en la bbdd como DISPONIBLE. Que me falta por hacer CON SOCKETS en esta práctica? Si se necesita kafka no lo voy a hacer todavía, porque no lo controlo. Me falta algo?
+
+Pero tengo una pregunta, cuando WM_WS_M se valida con WM_Central, en la bbdd se tiene que seguir marcando el estado como DESCONECTADA no? Es decir, cuando WM_WS_E empieza a mandarle OK por su estado a WM_WS_M es cuando sale como ACTIVA en la bbdd? Es así?
+Entonces si WM_Central cae, y se vuelve a levantar y se conecta WM_WS_M que estaba como fuga, será marcada como DESCONECTADA en la bbdd hasta que se conecte WM_WS_E a WM_WS_M que volverá a salir como ACTIVA y no como FUGA.
+
+Cuando Motor se conecta, en la bbdd sigue como DESCONECTADA, cuando se conecta Engine, en la bbdd sale como ACTIVA, cuando manda Engine el KO, en la bbdd sale como FUGA, cuando volvemos a conectar Engine, vuelve a salir como ACTIVA. Ese es el correcto funcionamiento no?
+
+He creado un hilo donde hay un menu WS_E manda a WS_M un estado de riego o un estado de fuga. Funciona correctamente. Ahora qué debo hacer?
+
+Cuando hay fuga, WS_E se desconecta de WS_M, pero sigue a la escucha de que este se contecte. WS_M no se desconecta de Central, pero en la bbdd sale como DESCONECTADA. Una vez de vuelve a conectar WS_E a W_SM vuelve a salir como DISPONIBLE en la bbdd. El límite de riego debo hacerlo.  Y cuando arranca la bbdd salen todas como DESCONECTADA
+
+Tengo un problema y es que cuando pausa el riego pasando un tiempo, sigue quedándose en el menu_regando() y tiene que volver a menú, insertando un if not regando no sale del bucle porque supongo que espera que ponga una opción al menos
+
+Mi versión de kafka es kafka_2.13-4.3.1
+
+He hecho mediante sockets que manden la info Monitor a Central, de litros por minuto etc. Eso está bien o debo hacerlo mediante kafka?
+
+Ahora si que me funciona.
+Pero he cambiado la sintaxis porque la tuya no era la correcta
+
+Debo crear otro .py de otro consumidor y en vez de grupo prueba pongo grupo-2?
+Y con el producer vuelvo a mandar el mensaje y que llegue a los dos consumers?
+
+No, lo hago con javac. Hay que descargar el .jar?
+
+Me funciona correctamente pero no me entra en esta parte sabrías por qué se debe?
+Creo que ya se por que es. No he compilado otra vez KafkaConsumer_Thread.java
+
+Vale pero para qué vas a querer una variable que compruebe si el engine está conectado? Si hasta que no esté activo el WS no se podrá conectar ningún FO? Es decir, que si un FO se conecta a un Monitor, eso querrá decir el monitor y el engine estarán conectados
+
+Bueno, entonces nos hemos quedado en que monitor coge la petición de FO, por ejemplo WS-04#INICIAR_RIEGO
+Esto lo recibe Monitor en su hilo escuchar_ordenes(MENSAJE) que esté mirará la cola de mensajes, comprobará que su id, por ej: WS-04 coincide con el que ha mandado FO, si no pasa a la siguiente iteración, si la orden es INICIAR_RIEGO, este se lo mandará al engine (lógica no creada todavía) y ya está no?
+
+Me funciona bien. El FO solicita por ejemplo WS-04 y esta se pone a regar. Pero tengo mis dudas. Cuando lo solicita (ahora no estamos haciendo las comprobaciones) tendría que ponerse a regar inmediatamente? O solo quedarse asignado con el WS?
+
+Yo tenía una columna en la bbdd donde había un 0 si la WS no estaba cogido por ningún FO y 1 si sí estaba. Ahora entonces no tiene mucho sentido esto no?
+
+Supongo que el operario tendrá que estar suscrito a respuestas-riego
+E imprimir por pantalla lo que le llega, es así?
+
+Tengo una duda aquí. Este puede mandar si es el hilo consumer?
+
+Viendo la práctica. El que tendría que mandar los datos a consumer y central es engine. Mucha tarea que hemos hecho se vería simplificada si mediante kafka mandamos desde engine a central y operator los datos del riego. no lo ves mejor así?
+
+Vamos a hacer esto si simplifica las cosas. Pero antes. Vamos a hacer un recuento de qué nos queda de práctica. Sin contar el frontend.
+Dámelo enumerado.
+
+Vamos a rediseñar las particiones. Esto es para mayor rendimiento? O simplicidad en el código?
+
+Bueno, podemos dejarlo de esta manera y plantearle que por la poca carga de peticiones lo hemos dejado así
+
+Pero hay que arreglar una cosa. Ahora mismo si se me cae Monitor se me cae Engine también. Eso habrá que arreglarlo no?
+
+Vale ya me funciona, pero no se por que no me llega el resumen a FO, si tengo creado el consumer
+
+Acabamos con FO mejor. Recuérdame también cuales son los puntos que nos quedan para acabar la práctica. Sin contar frontend. Enuméramelos.
+
+ruta = "/src/fichero-fo"
+Está mal puesta mi ruta? Ejecuto en src
+
+Me va perfectamente. He comprobado que un WS no esté registrado y este no lo conecta. Va genial. Vamos al siguiente paso?
+Dime cuales son los pasos que me quedan enumerándolos
+
+Pero mi pregunta es por qué se lo devolvemos a central si es el propio central el que nos envía esta orden desde su menú?
+
+Muy bien, pues una vez teniendo esto, habrá ahora que pasárselo a engine no?
+
+Ya tenemos en completo funcionamiento las 3 opciones del menú de central?
+
+Vale, si funciona el menú. Cuando lo dejo en FUERA_DE_SERVICIO sigue mandando el engine OK a monitor.
+Es la única pega que veo. hay que cambiar algo?
+
+No, lo tengo de tal manera que si no sale como DISPONIBLE en la bbdd no deja a ningún FO conectarse
+
+Dime qué es lo que queda para terminar la práctica, enuméramelo
+
+No habría, por ejemplo que cuando central en el menú pone un id X tenga que validarlo? Al igual que un FO?
+
+Quiero que me vuelvas a hacer un listado de todo lo que me queda. También quiero que me respondas, cuando harías el frontend? Antes de docker o después? Piensa que el front también es algo importante en la práctica
+
+
+Iniciar un riego: Se comportará de la misma forma que si lo hiciera
+un operario.
+- Bloquear la WS: La WS finalizará cualquier riego si estuviera en
+ejecución y pondrá su estado en NARANJA mostrando el mensaje de "Fuera
+de Servicio".
+- Activar la WS: La WS volverá a estado ACTIVADA y pondrá su color
+en VERDE.
+
+Hasta ahora de las tres ya están montadas. Pero me surge una duda. Bloquear solo bloquea cuando está en riego el WS? Si no lo está no puedes bloquearla?
+
+Genial, ya me funciona correctamente. He probado todos los casos y responden a la perfección. Ya hemos acabado con menú central. Como siempre, también quiero que me enumeres los puntos que me faltan para terminar la práctica
+
+
+He añadido a WM_WS_M un parámetro mas, pero a Central debo añadirlo. La cosa es que luego tiene que pasárselo TODOS sus hilos:
+WM_Central_Thread.java, MenuOperador_Thread.java, KafkaPeticiones_Thread.java, KafkaConsumer_Thread.java
+Esto cómo debería pasárselo?
+
+
+Vale ya me va bien. Y la comprobación de BLOQUEO que mande al FO el resumen también me funciona. Vamos a dejar los cierres limpios para otro momento. Con esto, ya solo nos queda el frontend verdad?
+
+
+SI, ciudades ficticias con zonas inventadas. Lo que estoy haciendo. Alicante puede ser una zona de la ciudad. Eso da igual. Se lo preguntaré al profesor si hay que cambiar eso si no. Vamos al fo.html
