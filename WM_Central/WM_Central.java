@@ -110,7 +110,9 @@ public class WM_Central{
 
     public static void inicializarEstados(){
         String url = "jdbc:sqlite:/app/data/WM.db";
-        var sql = "UPDATE aspersores SET estado = 'DESCONECTADA'";
+        var sql = "UPDATE aspersores SET estado = 'DESCONECTADA', " +
+                "ubicacion = '-', direccion = '-', operario_actual = NULL, " +
+                "caudal_actual = 0, volumen_actual = 0";
         try (var conn = DriverManager.getConnection(url);
             var pstmt = conn.prepareStatement(sql)) {
             pstmt.executeUpdate();
