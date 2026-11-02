@@ -5,6 +5,7 @@ import threading
 import time
 from kafka import KafkaProducer
 from kafka import KafkaConsumer
+from kafka.errors import NoBrokersAvailable, KafkaError
 
 FORMAT = "utf-8"
 HEADER = 1024

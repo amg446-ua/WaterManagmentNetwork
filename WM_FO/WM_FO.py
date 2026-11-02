@@ -1,5 +1,6 @@
 from kafka import KafkaProducer
 from kafka import KafkaConsumer
+from kafka.errors import NoBrokersAvailable, KafkaError
 import threading
 import sys
 import time
