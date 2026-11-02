@@ -72,3 +72,39 @@ services:
     ports:
       - "8082:8082"
     command: ["WM_FO_Frontend.py", "broker:9092", "FO-01", "8082"]
+
+  wm-ws-m-2:
+    build:
+      context: .
+      dockerfile: Docker/wm-ws-m/Dockerfile
+    container_name: wm-ws-m-2
+    ports:
+      - "5052:5052"
+    depends_on:
+      - broker
+      - wm-front
+    command: ["wm-front", "5050", "REGISTRO#WS-01#Elche#Av/Calle2_54321", "0.0.0.0", "5052", "broker:9092"]
+
+  wm-ws-e-2:
+    build:
+      context: .
+      dockerfile: Docker/wm-ws-e/Dockerfile
+    depends_on:
+      - broker
+      - wm-front
+      - wm-ws-m-2
+    stdin_open: true
+    tty: true
+    command: ["wm-ws-m-2", "5052"]
+
+  wm-fo-2:
+    build:
+      context: .
+      dockerfile: Docker/wm-fo/Dockerfile
+    container_name: wm-fo-2
+    depends_on:
+      - broker
+      - wm-front
+    ports:
+      - "8083:8083"
+    command: ["WM_FO_Frontend.py", "broker:9092", "FO-02", "8083"]
