@@ -91,7 +91,7 @@ def menu():
 
 def main():
 
-    global caudal_actual, volumen_acumulado, conectado_a_monitor
+    global caudal_actual, volumen_acumulado, conectado_a_monitor, fin_pendiente
     if(len(sys.argv) == 3):
         
         IP_SERVER = sys.argv[1]
