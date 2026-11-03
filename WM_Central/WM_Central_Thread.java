@@ -237,7 +237,13 @@ public class WM_Central_Thread extends Thread {
         producerProps.put(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, this.broker);
         producerProps.put(ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
         producerProps.put(ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName());
-        KafkaProducer<String, String> producer = new KafkaProducer<>(producerProps);
+        KafkaProducer<String, String> producer = null;
+        
+        try {
+            producer = new KafkaProducer<>(producerProps);
+        } catch (Exception e) {
+            System.err.println("[WM_Central] Imposible conectar con Kafka: " + e.getMessage());
+        }
 
 
         try{
@@ -325,9 +331,13 @@ public class WM_Central_Thread extends Thread {
                             String id_operario = getOperarioActual(id_estacion);
                             if (id_operario != null) {
                                 String aviso = id_operario + "#" + id_estacion + "#AVERIA: estación fuera de servicio por fuga";
-                                producer.send(new ProducerRecord<>("resumen-riego", aviso));
-                                producer.flush();
-                                System.out.println("[WM_Central] Aviso de fuga enviado a operario " + id_operario);
+                                if (producer != null) {
+                                    producer.send(new ProducerRecord<>("resumen-riego", aviso));
+                                    producer.flush();
+                                    System.out.println("[WM_Central] Aviso de fuga enviado a operario " + id_operario);
+                                } else {
+                                    System.err.println("[WM_Central] Imposible avisar al operario: Kafka no disponible");
+                                }
                                 resetearWS(id_estacion);
                             }
 
