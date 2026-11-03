@@ -82,16 +82,16 @@ public class WM_Central{
         String sql = "INSERT OR IGNORE INTO aspersores (id, estado, operario_actual, caudal_actual, volumen_actual, ubicacion) VALUES (?, ?, ?, ?, ?, ?)";
 
         String[][] datos = {
-            {"WS-01", "DESCONECTADA", "NULL", "NULL"},
-            {"WS-02", "DESCONECTADA", "NULL", "NULL"},
-            {"WS-03", "DESCONECTADA", "NULL", "NULL"},
-            {"WS-04", "DESCONECTADA", "NULL", "NULL"},
-            {"WS-05", "DESCONECTADA", "NULL", "NULL"},
-            {"WS-06", "DESCONECTADA", "NULL", "NULL"},
-            {"WS-07", "DESCONECTADA", "NULL", "NULL"},
-            {"WS-08", "DESCONECTADA", "NULL", "NULL"},
-            {"WS-09", "DESCONECTADA", "NULL", "NULL"},
-            {"WS-10", "DESCONECTADA", "NULL", "NULL"}
+            {"WS-01", "DESCONECTADA", "NULL", "-"},
+            {"WS-02", "DESCONECTADA", "NULL", "-"},
+            {"WS-03", "DESCONECTADA", "NULL", "-"},
+            {"WS-04", "DESCONECTADA", "NULL", "-"},
+            {"WS-05", "DESCONECTADA", "NULL", "-"},
+            {"WS-06", "DESCONECTADA", "NULL", "-"},
+            {"WS-07", "DESCONECTADA", "NULL", "-"},
+            {"WS-08", "DESCONECTADA", "NULL", "-"},
+            {"WS-09", "DESCONECTADA", "NULL", "-"},
+            {"WS-10", "DESCONECTADA", "NULL", "-"}
         };
 
         try (var conn = DriverManager.getConnection(url);
@@ -121,7 +121,7 @@ public class WM_Central{
         String url = "jdbc:sqlite:/app/data/WM.db";
         var sql = "UPDATE aspersores SET " +
             "operario_actual = CASE WHEN estado = 'REGANDO' THEN operario_actual ELSE NULL END, " +
-            "estado = 'DESCONECTADA', ubicacion = '-', direccion = '-', " +
+            "estado = 'DESCONECTADA'" +
             "caudal_actual = 0, volumen_actual = 0";
         try (var conn = DriverManager.getConnection(url);
             var pstmt = conn.prepareStatement(sql)) {
