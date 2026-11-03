@@ -106,3 +106,6 @@ Vale ya me va bien. Y la comprobación de BLOQUEO que mande al FO el resumen tam
 
 
 SI, ciudades ficticias con zonas inventadas. Lo que estoy haciendo. Alicante puede ser una zona de la ciudad. Eso da igual. Se lo preguntaré al profesor si hay que cambiar eso si no. Vamos al fo.html
+
+
+Necesito controlar los errores, y ahora mismo el que no se muestra de forma controlada es el de Kafka. Como puedo controlar la salida de errores de Kafka. Habrá que cambiar el catch de KafkaPeticiones, KafkaConsumer y MenuOperator
