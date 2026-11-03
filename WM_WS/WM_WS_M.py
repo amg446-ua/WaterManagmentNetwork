@@ -50,6 +50,12 @@ def hilo_cliente_central(MENSAJE, ADDR):
             if "OK" in respuesta:
                 print("[WM_WS_M] Validación correcta en Central. Manteniendo conexión con [WM_Central]")
                 sock_central = cliente
+
+                # Si el Engine ya estaba conectado, reanunciamos su estado a Central
+                if conn_engine:
+                    estado = "FUERA_DE_SERVICIO" if bloqueada else "DISPONIBLE"
+                    id_ws = MENSAJE.split("#")[1]
+                    enviar_utf(cliente, f"CONNECT#{id_ws}#{estado}")
                 # Mantenemos conexión con WM_Central para notificar estado 
                 # de WS y actualizar estado en la bbdd
                 while True:
