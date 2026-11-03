@@ -283,8 +283,17 @@ public class WM_Central_Thread extends Thread {
                     System.out.println("Cadena: " + Cadena);
                     if(Cadena == null || Cadena.isEmpty()) {
                         System.out.println("La estación " + id_estacion + " se ha desconectado.");
+
+                        String estadoAnterior = buscarEstadoID_BBDD(id_estacion);
+                        String operarioAnterior = getOperarioActual(id_estacion);
+
                         updateConexion_BBDD("DESCONECTADA", id_estacion);
                         resetearWS(id_estacion);
+
+                        if("REGANDO".equals(estadoAnterior) && operarioAnterior != null){
+                            setOperarioActual(id_estacion, operarioAnterior);
+                        }
+
                         break;
                     }
                     else if(Cadena.contains("CONNECT")){
