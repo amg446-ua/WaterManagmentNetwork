@@ -16,7 +16,7 @@ for i in $(seq 1 $N); do
 
     sleep 1
 
-    docker run -d --rm --name "engine-$ID_ESTACION" \
+    docker run -d --rm -it --name "engine-$ID_ESTACION" \
         --add-host=host.docker.internal:host-gateway \
         wm-ws-e host.docker.internal ${PUERTO_MONITOR}
 done
