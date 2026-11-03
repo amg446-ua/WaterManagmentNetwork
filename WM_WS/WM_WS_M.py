@@ -245,8 +245,12 @@ def escuchar_ordenes(MENSAJE):
             bloqueada = False
             if sock_central:
                 tramo = splitear(MENSAJE)
-                enviar_utf(sock_central, f"CONNECT#{tramo[1]}#DISPONIBLE")
-                print("[WM_WS_M] Estado DISPONIBLE notificado a Central.")
+                if conn_engine:
+                    enviar_utf(sock_central, f"CONNECT#{tramo[1]}#DISPONIBLE")
+                    print("[WM_WS_M] Estado DISPONIBLE notificado a Central.")
+                else:
+                    enviar_utf(sock_central, f"ALERT#{tramo[1]}#FUGA")
+                    print("[WM_WS_M] Sin Engine conectado: la estación sigue averiada (FUGA).")
             else:
                 print("[WM_WS_M] No hay conexión con Central; activación no notificada.")
         
