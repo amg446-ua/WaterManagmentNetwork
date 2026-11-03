@@ -12,7 +12,7 @@ for i in $(seq 1 $N); do
 
     docker run -d --rm --name "monitor-$ID_ESTACION" \
         -p ${PUERTO_MONITOR}:${PUERTO_MONITOR} \
-        wm-ws-m shortline.proxy.rlwy.net 28009 "REGISTRO#${ID_ESTACION}#Ubicacion-$i" 0.0.0.0 ${PUERTO_MONITOR} interchange.proxy.rlwy.net:36609
+        wm-ws-m shortline.proxy.rlwy.net 28009 "REGISTRO#${ID_ESTACION}#Ubicacion-$i#Calle-$i" 0.0.0.0 ${PUERTO_MONITOR} interchange.proxy.rlwy.net:36609
 
     sleep 1
 
