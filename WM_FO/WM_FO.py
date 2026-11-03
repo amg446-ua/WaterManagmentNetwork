@@ -218,7 +218,7 @@ def main():
                     #time.sleep(4)
                     recibido = resultado_pendiente_op1.wait(timeout=4.0)
                     if not recibido:
-                        print(f"[WM_FO] Central no responde. Se ha caído")
+                        print(f"[WM_FO] Imposible conectar con WM_Central")
                     
                     estacion_pendiente_op1 = None
 
