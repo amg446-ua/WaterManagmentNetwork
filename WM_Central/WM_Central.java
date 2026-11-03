@@ -55,7 +55,11 @@ public class WM_Central{
         String[][] datos = {
             {"FO-01", "Adrián Muñoz"},
             {"FO-02", "Javier Rentero"},
-            {"FO-03", "Fran Sol"}
+            {"FO-03", "Fran Sol"},
+            {"FO-04", "Carlos Abad"},
+            {"FO-05", "Beto Company"},
+            {"FO-06", "Oriol Soldevila"},
+            {"FO-07", "Victor Narro"}
         };
 
         try(var conn = DriverManager.getConnection(url); var pstmt = conn.prepareStatement(sql)){
@@ -82,7 +86,12 @@ public class WM_Central{
             {"WS-02", "DESCONECTADA", "NULL", "NULL"},
             {"WS-03", "DESCONECTADA", "NULL", "NULL"},
             {"WS-04", "DESCONECTADA", "NULL", "NULL"},
-            {"WS-05", "DESCONECTADA", "NULL", "NULL"}
+            {"WS-05", "DESCONECTADA", "NULL", "NULL"},
+            {"WS-06", "DESCONECTADA", "NULL", "NULL"},
+            {"WS-07", "DESCONECTADA", "NULL", "NULL"},
+            {"WS-08", "DESCONECTADA", "NULL", "NULL"},
+            {"WS-09", "DESCONECTADA", "NULL", "NULL"},
+            {"WS-10", "DESCONECTADA", "NULL", "NULL"}
         };
 
         try (var conn = DriverManager.getConnection(url);
