@@ -79,7 +79,7 @@ public class WM_Central{
 
     public static void insertarDatosPrueba(){
         String url = "jdbc:sqlite:/app/data/WM.db";
-        String sql = "INSERT OR IGNORE INTO aspersores (id, estado, operario_actual, caudal_actual, volumen_actual, ubicacion) VALUES (?, ?, ?, ?, ?, ?)";
+        String sql = "INSERT OR IGNORE INTO aspersores (id, estado, operario_actual, caudal_actual, volumen_actual, ubicacion, direccion) VALUES (?, ?, ?, ?, ?, ?, ?)";
 
         String[][] datos = {
             {"WS-01", "DESCONECTADA", "NULL", "-"},
