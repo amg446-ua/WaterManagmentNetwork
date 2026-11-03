@@ -10,6 +10,7 @@ DURACION_MAX = 50.0 #max tiempo regando
 CAUDAL_MIN = 8.0
 CAUDAL_MAX = 15.0
 conectado_a_monitor = False
+fin_pendiente = None
 
 def send(msg):
     message = msg.encode(FORMAT)
@@ -115,7 +116,10 @@ def main():
                     client.connect(ADDR)
                     print("[WM_WS_E] Conectado al servidor")
                     conectado_a_monitor = True
-
+                    if fin_pendiente:
+                        client.sendall(fin_pendiente.encode(FORMAT))
+                        print(f"[WM_WS_E] Estado final del riego enviado tras la avería: {fin_pendiente}")
+                        fin_pendiente = None
                     # Si tumbamos Monitor, cuando vuelva a conectarse seguirá regando.
                     if regando:
                         if time.time() - inicio_riego >= DURACION_MAX:
@@ -163,6 +167,10 @@ def main():
                             if simular_fuga:
                                 print("PING HEALTH recibido. Envío a [WM_WS_M:] KO")
                                 client.sendall("KO".encode(FORMAT))
+                                if regando:
+                                    regando = False
+                                    fin_pendiente = f"OK#FIN#{volumen_acumulado}"
+                                    volumen_acumulado = 0.0
                                 break
                             elif regando:
                                 if time.time() - inicio_riego >= DURACION_MAX:
