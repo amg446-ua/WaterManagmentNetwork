@@ -62,12 +62,12 @@ def hilo_cliente_central(MENSAJE, ADDR):
                     mensaje = recibir_utf(cliente)
                     print(f"Mensaje: {mensaje}")
                     if not mensaje:
-                        print("[WM_WS_M] Conexión cerrada por Central.")
+                        print("[WM_WS_M] Conexión cerrada por Central")
                         break
                     print(f"[WM_WS_M] Mensaje recibido de Central: {mensaje}")
 
             else:
-                print("[WM_WS_M] No se pudo validar en Central. Abortando arranque.")
+                print("[WM_WS_M] Imposible conectar con WM_Central. Reintento cada 3 segundos")
                 cliente.close()
                 sock_central = None
 
