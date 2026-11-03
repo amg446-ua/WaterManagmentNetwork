@@ -109,8 +109,8 @@ public class KafkaPeticiones_Thread extends Thread{
                     }
                 }
             }catch (Exception e) {
-                System.err.println("[KafkaPeticiones_Thread] ERROR fatal: " + e.getMessage());
-                e.printStackTrace();
+                System.err.println("[WM_Central] Imposible conectar con Kafka: " + e.getMessage() + ". Reintentando en 3 s...");
+                try { Thread.sleep(3000); } catch (InterruptedException ie) { Thread.currentThread().interrupt(); }
             }
         }
     }
