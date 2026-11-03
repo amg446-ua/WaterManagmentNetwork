@@ -12,11 +12,11 @@ for i in $(seq 1 $N); do
 
     docker run -d --rm --name "monitor-$ID_ESTACION" \
         -p ${PUERTO_MONITOR}:${PUERTO_MONITOR} \
-        wm-ws-m shortline.proxy.rlwy.net 28009 "REGISTRO#${ID_ESTACION}#Ubicacion-$i#Calle-$i" 0.0.0.0 ${PUERTO_MONITOR} interchange.proxy.rlwy.net:36609
+        watermanagmentnetwork-wm-ws-m shortline.proxy.rlwy.net 28009 "REGISTRO#${ID_ESTACION}#Ubicacion-$i#Calle-$i" 0.0.0.0 ${PUERTO_MONITOR} interchange.proxy.rlwy.net:36609
 
     sleep 1
 
     docker run -d --rm -it --name "engine-$ID_ESTACION" \
         --add-host=host.docker.internal:host-gateway \
-        wm-ws-e host.docker.internal ${PUERTO_MONITOR}
+        watermanagmentnetwork-wm-ws-e host.docker.internal ${PUERTO_MONITOR}
 done
