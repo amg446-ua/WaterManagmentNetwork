@@ -121,7 +121,7 @@ public class WM_Central{
         String url = "jdbc:sqlite:/app/data/WM.db";
         var sql = "UPDATE aspersores SET " +
             "operario_actual = CASE WHEN estado = 'REGANDO' THEN operario_actual ELSE NULL END, " +
-            "estado = 'DESCONECTADA'," +
+            "estado = 'DESCONECTADA', " +
             "caudal_actual = 0, volumen_actual = 0";
         try (var conn = DriverManager.getConnection(url);
             var pstmt = conn.prepareStatement(sql)) {
