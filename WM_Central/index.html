@@ -449,7 +449,7 @@
                 actualizarContador(estaciones);
                 actualizarFicha();
             } catch (error) {
-                document.getElementById('ultima-actualizacion').textContent = 'Error leyendo estaciones: ' + error.message;
+                document.getElementById('ultima-actualizacion').textContent = 'Imposible conectar con WM_Central: ' + error.message;
             }
         }
 
