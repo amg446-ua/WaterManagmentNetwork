@@ -181,7 +181,7 @@ public class WM_Central_Thread extends Thread {
 
     public static void resetearWS(String id_ws) {
         String url = "jdbc:sqlite:/app/data/WM.db";
-        String sql = "UPDATE aspersores SET operario_actual = ?, caudal_actual = ?, volumen_actual = ?, ubicacion = ? WHERE id = ?";
+        String sql = "UPDATE aspersores SET operario_actual = ?, caudal_actual = ?, volumen_actual = ?, ubicacion = ?, direccion = ? WHERE id = ?";
 
         try (var conn = DriverManager.getConnection(url); var pstmt = conn.prepareStatement(sql)) {
             
@@ -189,7 +189,8 @@ public class WM_Central_Thread extends Thread {
             pstmt.setDouble(2, 0.0);
             pstmt.setDouble(3, 0.0);
             pstmt.setString(4, "-");
-            pstmt.setString(5, id_ws);
+            pstmt.setString(5, "-");
+            pstmt.setString(6, id_ws);
         
             int filasAfectadas = pstmt.executeUpdate();
             
