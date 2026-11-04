@@ -153,7 +153,7 @@ def atender_engine(conn, MENSAJE):
         print(f"Respuesta: {respuesta}")
         print(f"Error en la conexión con el Engine: {e}")
         tramo = splitear(MENSAJE)
-        mensaje = "ALERT#"+tramo[1]+"#DESCONECTADA"
+        mensaje = "ALERT#"+tramo[1]+"#FUGA"
         enviar_utf(sock_central, mensaje)
     finally:
         conn.close();
